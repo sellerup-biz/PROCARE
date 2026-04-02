@@ -1,0 +1,43 @@
+name: Load History
+
+on:
+  workflow_dispatch:
+    inputs:
+      date_from:
+        description: 'От (YYYY-MM-DD)'
+        required: true
+        default: '2026-01-01'
+      date_to:
+        description: 'До (YYYY-MM-DD)'
+        required: true
+        default: '2026-03-31'
+
+permissions:
+  contents: write
+
+jobs:
+  history:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_TOKEN }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install requests PyNaCl
+      - run: python fetch_history.py
+        env:
+          HISTORY_FROM:           ${{ github.event.inputs.date_from }}
+          HISTORY_TO:             ${{ github.event.inputs.date_to }}
+          CLIENT_ID_PROCARE:      ${{ secrets.CLIENT_ID_PROCARE }}
+          CLIENT_SECRET_PROCARE:  ${{ secrets.CLIENT_SECRET_PROCARE }}
+          REFRESH_TOKEN_PROCARE:  ${{ secrets.REFRESH_TOKEN_PROCARE }}
+          GH_TOKEN:               ${{ secrets.GH_TOKEN }}
+      - run: |
+          git config user.name "github-actions"
+          git config user.email "bot@procare"
+          git add data.json
+          git diff --staged --quiet || git commit -m "History ${{ github.event.inputs.date_from }} - ${{ github.event.inputs.date_to }}"
+          git pull --rebase origin main
+          git push
