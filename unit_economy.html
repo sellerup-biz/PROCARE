@@ -389,6 +389,8 @@ function getCounts() {
     r.all++;
     const st = getStatus(p);
     if (r[st] !== undefined) r[st]++;
+    // "winning" filter includes hits (all profitable products)
+    if (st === 'hit') r.winning++;
   });
   return r;
 }
@@ -400,7 +402,15 @@ function getCategories() {
 function filteredProducts() {
   return PRODUCTS.filter(p => {
     if (curCat && p.category !== curCat) return false;
-    if (curFilter !== 'all' && getStatus(p) !== curFilter) return false;
+    if (curFilter !== 'all') {
+      const st = getStatus(p);
+      // "winning" filter shows all profitable products (hit + winning)
+      if (curFilter === 'winning') {
+        if (st !== 'winning' && st !== 'hit') return false;
+      } else {
+        if (st !== curFilter) return false;
+      }
+    }
     return true;
   });
 }
