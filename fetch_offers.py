@@ -179,20 +179,34 @@ def get_offer_catalog(token):
     return catalog
 
 
-# ── Allegro API — заказы по дням ──────────────────────────────────────────────
+# ── Allegro API — заказы за период ────────────────────────────────────────────
 
-def get_orders_day(token, date_str):
+def get_orders_for_period(token, date_from, date_to):
     """
-    GET /order/checkout-forms для одного дня.
-    Возвращает {offer_id: {"qty": int, "revenue": float}}
-    """
-    dt  = datetime.strptime(date_str, "%Y-%m-%d")
-    tz  = get_tz(dt.month)
-    d_from = f"{date_str}T00:00:00+0{tz}:00"
-    d_to   = f"{date_str}T23:59:59+0{tz}:00"
+    GET /order/checkout-forms за весь период.
 
-    result = defaultdict(lambda: {"qty": 0, "revenue": 0.0})
-    offset = 0
+    Allegro не поддерживает boughtAt.gte/lte как фильтр.
+    Используем updatedAt.gte/lte (единственный поддерживаемый фильтр дат),
+    затем фильтруем по полю boughtAt в ответе.
+
+    Возвращает {date_str: {offer_id: {"qty": int, "revenue": float}}}
+    """
+    dt_from = datetime.strptime(date_from, "%Y-%m-%d")
+    dt_to   = datetime.strptime(date_to,   "%Y-%m-%d")
+    tz_f    = get_tz(dt_from.month)
+    tz_t    = get_tz(dt_to.month)
+
+    # Небольшой буфер: за несколько дней до — чтобы не потерять заказы,
+    # у которых updatedAt чуть раньше чем boughtAt (редко, но бывает)
+    buf_from = (dt_from - timedelta(days=2)).strftime("%Y-%m-%d")
+    d_from_iso = f"{buf_from}T00:00:00+0{tz_f}:00"
+    d_to_iso   = f"{date_to}T23:59:59+0{tz_t}:00"
+
+    by_date = defaultdict(lambda: defaultdict(lambda: {"qty": 0, "revenue": 0.0}))
+    offset  = 0
+    total   = 0
+
+    print(f"  Fetching orders {date_from} → {date_to} (updatedAt filter)...")
 
     while True:
         try:
@@ -200,36 +214,51 @@ def get_orders_day(token, date_str):
                 "https://api.allegro.pl/order/checkout-forms",
                 headers=hdrs(token),
                 params={
-                    "status":       "BOUGHT",
-                    "boughtAt.gte": d_from,
-                    "boughtAt.lte": d_to,
-                    "limit":        100,
-                    "offset":       offset,
+                    "updatedAt.gte": d_from_iso,
+                    "updatedAt.lte": d_to_iso,
+                    "limit":         100,
+                    "offset":        offset,
                 },
                 timeout=30,
             )
         except Exception as e:
-            print(f"    WARNING: request error on {date_str}: {e}")
+            print(f"  WARNING: request error: {e}")
             break
 
         if resp.status_code != 200:
-            print(f"    WARNING: checkout-forms {resp.status_code} on {date_str}: {resp.text[:150]}")
+            print(f"  WARNING: checkout-forms {resp.status_code}: {resp.text[:200]}")
             break
 
         forms = resp.json().get("checkoutForms", [])
-        for form in forms:
-            for item in form.get("lineItems", []):
-                oid     = item.get("offer", {}).get("id", "unknown")
-                qty     = int(item.get("quantity", 1))
-                price   = float(item.get("price", {}).get("amount", 0))
-                result[oid]["qty"]     += qty
-                result[oid]["revenue"] += round(qty * price, 2)
 
+        for form in forms:
+            # boughtAt присутствует только у оплаченных заказов
+            bought_at = form.get("boughtAt", "")
+            if not bought_at:
+                continue
+            date_str = bought_at[:10]
+            # Берём только заказы в нашем целевом диапазоне
+            if date_str < date_from or date_str > date_to:
+                continue
+
+            for item in form.get("lineItems", []):
+                oid   = item.get("offer", {}).get("id", "")
+                if not oid:
+                    continue
+                qty   = int(item.get("quantity", 1))
+                price = float(item.get("price", {}).get("amount", 0))
+                by_date[date_str][oid]["qty"]     += qty
+                by_date[date_str][oid]["revenue"] += round(qty * price, 2)
+                total += qty
+
+        print(f"    offset={offset}  batch={len(forms)}  items_so_far={total}")
         if len(forms) < 100:
             break
         offset += 100
 
-    return dict(result)
+    result = {ds: dict(offers) for ds, offers in by_date.items()}
+    print(f"  Orders done: {len(result)} days with sales, {total} total items")
+    return result
 
 
 # ── Allegro API — биллинг ─────────────────────────────────────────────────────
@@ -337,18 +366,9 @@ def main():
     date_to   = today.strftime("%Y-%m-%d")
     date_from = (today - timedelta(days=OFFERS_DAYS - 1)).strftime("%Y-%m-%d")
 
-    # Build list of dates in range
-    start_dt = datetime.strptime(date_from, "%Y-%m-%d").date()
-    end_dt   = datetime.strptime(date_to,   "%Y-%m-%d").date()
-    all_dates = []
-    cur = start_dt
-    while cur <= end_dt:
-        all_dates.append(cur.strftime("%Y-%m-%d"))
-        cur += timedelta(days=1)
-
     print("=" * 60)
     print(f"  PROCARE — fetch_offers.py")
-    print(f"  Period: {date_from} -> {date_to}  ({OFFERS_DAYS} days, {len(all_dates)} dates)")
+    print(f"  Period: {date_from} -> {date_to}  ({OFFERS_DAYS} days)")
     print("=" * 60)
 
     # ── Step 1: OAuth token ──────────────────────────────────────────────────
@@ -369,18 +389,10 @@ def main():
     print(f"\n[3/5] Loading billing totals...")
     total_commission, total_ads = get_billing_totals(token, date_from, date_to)
 
-    # ── Step 4: Orders day by day ────────────────────────────────────────────
-    print(f"\n[4/5] Loading orders day by day...")
+    # ── Step 4: Orders for entire period ────────────────────────────────────
+    print(f"\n[4/5] Loading orders for period...")
     # {date_str: {offer_id: {"qty": int, "revenue": float}}}
-    day_orders = {}
-    for date_str in all_dates:
-        offers_day = get_orders_day(token, date_str)
-        if offers_day:
-            day_orders[date_str] = offers_day
-            day_rev = sum(v["revenue"] for v in offers_day.values())
-            print(f"  {date_str}: {len(offers_day)} offers, revenue={day_rev:.2f} PLN")
-        else:
-            print(f"  {date_str}: no orders")
+    day_orders = get_orders_for_period(token, date_from, date_to)
 
     # ── Step 5: Distribute commission/ads proportionally ─────────────────────
     print(f"\n[5/5] Building unit_data structure and saving files...")
