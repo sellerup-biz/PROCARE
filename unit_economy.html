@@ -71,6 +71,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F0F7F4;color:#1a1a1
 .b-winning{background:#e8f5ef;color:#0F6E56;border:1px solid #b2dfcf}
 .b-losing{background:#fdecea;color:#A32D2D;border:1px solid #f5b8b8}
 .b-sleeping{background:#f5f5f5;color:#888;border:1px solid #ddd}
+.b-nocog{background:#f0f4ff;color:#6b7280;border:1px solid #d1d5db}
 .tc{font-size:13px;text-align:right}
 .tc small{display:block;font-size:10px;color:#aaa;margin-top:1px}
 .tc.gr{color:#0F6E56;font-weight:600}
@@ -160,8 +161,8 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F0F7F4;color:#1a1a1
 const SHOP     = 'ProCare';
 const PER_PAGE = 50;
 const HIT_TOP_N = 50;
-const BADGE = {hit:'★ Хит', winning:'↑ Выигрывает', losing:'✕ Проигрышный', sleeping:'◎ Спящий'};
-const BCLS  = {hit:'b-hit', winning:'b-winning', losing:'b-losing', sleeping:'b-sleeping'};
+const BADGE = {hit:'★ Хит', winning:'↑ Выигрывает', losing:'✕ Проигрышный', sleeping:'◎ Спящий', nocog:'◌ Без COG'};
+const BCLS  = {hit:'b-hit', winning:'b-winning', losing:'b-losing', sleeping:'b-sleeping', nocog:'b-nocog'};
 
 // ── App state ──────────────────────────────────────────────────
 let PRODUCTS    = [];       // [{ean, name, category, offers: {ProCare: offerId}}]
@@ -325,6 +326,7 @@ function marginPct(d, p) {
 
 // ── Status calculation ─────────────────────────────────────────
 function buildStatusCache() {
+  // Hits = top HIT_TOP_N by sales among products WITH COG and positive margin
   const salesList = PRODUCTS.map(p => {
     const key = productKey(p);
     const a = aggCache && aggCache[key];
@@ -335,7 +337,8 @@ function buildStatusCache() {
   let hitCount = 0;
   for (const item of salesList) {
     if (hitCount >= HIT_TOP_N) break;
-    if (item.sales > 0 && marginPct(item.d, item.p) >= 0) {
+    // Only COG products with positive margin qualify as hits
+    if (item.sales > 0 && hasCog(item.p) && marginPct(item.d, item.p) >= 0) {
       hitKeys.add(item.key);
       hitCount++;
     }
@@ -344,7 +347,11 @@ function buildStatusCache() {
   statusCache = {};
   for (const p of PRODUCTS) {
     const key = productKey(p);
-    const d   = getProductData(p);
+
+    // Products without COG → nocog (same as POLAX)
+    if (!hasCog(p)) { statusCache[key] = 'nocog'; continue; }
+
+    const d = getProductData(p);
     if (!d || d.sales === 0) { statusCache[key] = 'sleeping'; continue; }
     if (marginPct(d, p) < 0) { statusCache[key] = 'losing';   continue; }
     statusCache[key] = hitKeys.has(key) ? 'hit' : 'winning';
@@ -382,7 +389,6 @@ function getCounts() {
     r.all++;
     const st = getStatus(p);
     if (r[st] !== undefined) r[st]++;
-    if (!hasCog(p)) r.nocog++;
   });
   return r;
 }
@@ -394,7 +400,6 @@ function getCategories() {
 function filteredProducts() {
   return PRODUCTS.filter(p => {
     if (curCat && p.category !== curCat) return false;
-    if (curFilter === 'nocog') return !hasCog(p);
     if (curFilter !== 'all' && getStatus(p) !== curFilter) return false;
     return true;
   });
