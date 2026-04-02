@@ -202,10 +202,11 @@ def get_orders_for_period(token, date_from, date_to):
     d_from_iso = f"{buf_from}T00:00:00+0{tz_f}:00"
     d_to_iso   = f"{date_to}T23:59:59+0{tz_t}:00"
 
-    # ── Шаг 1: собрать ID форм + дату покупки ───────────────────────────────
+    # ── Шаг 1: собрать все ID форм из updatedAt-окна ────────────────────────
+    # boughtAt отсутствует в листинговом ответе — фильтруем его в шаге 2
     print(f"  Step 1/2: listing orders {date_from} → {date_to} (updatedAt filter)...")
-    form_ids = {}   # {form_id: date_str}
-    offset   = 0
+    all_ids = []
+    offset  = 0
 
     while True:
         try:
@@ -230,27 +231,22 @@ def get_orders_for_period(token, date_from, date_to):
 
         forms = resp.json().get("checkoutForms", [])
         for form in forms:
-            bought_at = form.get("boughtAt", "")
-            if not bought_at:
-                continue
-            date_str = bought_at[:10]
-            if date_str < date_from or date_str > date_to:
-                continue
-            form_ids[form["id"]] = date_str
+            all_ids.append(form["id"])
 
-        print(f"    offset={offset}  batch={len(forms)}  in_range_so_far={len(form_ids)}")
+        print(f"    offset={offset}  batch={len(forms)}  total_so_far={len(all_ids)}")
         if len(forms) < 100:
             break
         offset += 100
 
-    print(f"  Found {len(form_ids)} orders in date range")
+    print(f"  Found {len(all_ids)} forms in updatedAt window")
 
-    # ── Шаг 2: получить lineItems для каждой формы ──────────────────────────
-    print(f"  Step 2/2: fetching lineItems for each order...")
+    # ── Шаг 2: получить boughtAt + lineItems для каждой формы ───────────────
+    print(f"  Step 2/2: fetching boughtAt + lineItems for each form...")
     by_date = defaultdict(lambda: defaultdict(lambda: {"qty": 0, "revenue": 0.0}))
     total   = 0
+    skipped = 0
 
-    for i, (fid, date_str) in enumerate(form_ids.items(), 1):
+    for i, fid in enumerate(all_ids, 1):
         try:
             resp = requests.get(
                 f"https://api.allegro.pl/order/checkout-forms/{fid}",
@@ -265,7 +261,17 @@ def get_orders_for_period(token, date_from, date_to):
             print(f"  WARNING: form {fid} → {resp.status_code}")
             continue
 
-        for item in resp.json().get("lineItems", []):
+        data      = resp.json()
+        bought_at = data.get("boughtAt", "")
+        if not bought_at:
+            skipped += 1
+            continue
+        date_str = bought_at[:10]
+        if date_str < date_from or date_str > date_to:
+            skipped += 1
+            continue
+
+        for item in data.get("lineItems", []):
             oid   = item.get("offer", {}).get("id", "")
             if not oid:
                 continue
@@ -275,8 +281,8 @@ def get_orders_for_period(token, date_from, date_to):
             by_date[date_str][oid]["revenue"] += round(qty * price, 2)
             total += qty
 
-        if i % 50 == 0 or i == len(form_ids):
-            print(f"    fetched {i}/{len(form_ids)} forms, items_so_far={total}")
+        if i % 50 == 0 or i == len(all_ids):
+            print(f"    fetched {i}/{len(all_ids)} forms, in_range={i-skipped}, items={total}")
 
     result = {ds: dict(offers) for ds, offers in by_date.items()}
     print(f"  Orders done: {len(result)} days with sales, {total} total items")
