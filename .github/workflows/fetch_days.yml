@@ -1,0 +1,35 @@
+name: Fetch Days (current month)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fetch-days:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_TOKEN }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install requests PyNaCl
+      - name: Collect daily data for current month
+        run: python fetch_days.py
+        env:
+          CLIENT_ID_PROCARE:      ${{ secrets.CLIENT_ID_PROCARE }}
+          CLIENT_SECRET_PROCARE:  ${{ secrets.CLIENT_SECRET_PROCARE }}
+          REFRESH_TOKEN_PROCARE:  ${{ secrets.REFRESH_TOKEN_PROCARE }}
+          GH_TOKEN:               ${{ secrets.GH_TOKEN }}
+      - name: Commit data.json
+        run: |
+          git config user.name "github-actions"
+          git config user.email "bot@procare"
+          git add data.json
+          git diff --staged --quiet || git commit -m "Daily data: current month $(date +'%Y-%m')"
+          git pull --rebase origin main
+          git push

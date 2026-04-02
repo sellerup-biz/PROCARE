@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PROCARE — Allegro Dashboard</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#F0F7F4;color:#1a1a1a;min-height:100vh;padding:1.75rem}
+
+.header{display:flex;align-items:center;gap:14px;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1.5px solid #c8e6dc}
+.logo{width:46px;height:46px;background:#0F6E56;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;letter-spacing:1px;flex-shrink:0}
+.header h1{font-size:26px;font-weight:800;letter-spacing:4px;color:#1a1a1a}
+.header p{font-size:12px;color:#888;margin-top:3px}
+
+/* GOAL */
+.goal{background:#fff;border:1px solid #c8e6dc;border-radius:14px;padding:1.25rem 1.5rem;margin-bottom:1rem}
+
+/* CHART CARDS */
+.chart-card{background:#fff;border:1px solid #c8e6dc;border-radius:14px;padding:1.25rem 1.5rem;margin-bottom:1rem}
+.chart-title{font-size:14px;font-weight:700;color:#1a1a1a}
+.chart-sub{font-size:11px;color:#999;margin-top:2px}
+
+/* MONTHLY TABLE */
+.mtable{width:100%;font-size:12px;border-collapse:collapse}
+.mtable th{text-align:right;padding:5px 8px;color:#aaa;font-weight:600;border-bottom:1px solid #e8f4ef;font-size:10px}
+.mtable th:first-child{text-align:left}
+.mtable td{text-align:right;padding:5px 8px;border-bottom:1px solid #f0faf6;color:#1a1a1a}
+.mtable td:first-child{text-align:left;color:#666}
+.mtable tr:last-child td{border:none}
+
+.footer{text-align:center;font-size:11px;color:#ccc;margin-top:0.5rem;letter-spacing:1px}
+
+/* NAV LINKS */
+.nav-link{font-size:12px;padding:7px 16px;border-radius:8px;background:#edfaf5;color:#0F6E56;text-decoration:none;font-weight:600;border:1px solid #c8e6dc}
+.nav-link:hover{background:#d4f2e7}
+.nav-link.primary{background:#0F6E56;color:#fff;border-color:#0F6E56}
+.nav-link.primary:hover{background:#0a5541}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">PRO<br>CARE</div>
+  <div>
+    <h1>PROCARE</h1>
+    <p>Аналитика продаж · Allegro · 1 магазин</p>
+  </div>
+  <div style="margin-left:auto;display:flex;gap:8px;flex-shrink:0;flex-wrap:wrap">
+    <a href="analytics.html" class="nav-link primary">Аналитика →</a>
+    <a href="auth.html" class="nav-link">Авторизация</a>
+  </div>
+</div>
+
+<div id="goalBlock"></div>
+
+<!-- DAILY SALES -->
+<div class="chart-card">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
+    <div>
+      <div class="chart-title">Продажи по дням · последние 30 дней</div>
+      <div class="chart-sub">Allegro PL · обновляется каждую ночь автоматически</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:#555">
+      <span style="width:10px;height:10px;border-radius:2px;background:#0F6E56;display:inline-block"></span>ProCare
+    </div>
+  </div>
+  <canvas id="salesChart" style="width:100%;max-height:300px"></canvas>
+</div>
+
+<!-- MONTHLY SALES -->
+<div class="chart-card">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
+    <div>
+      <div class="chart-title">Продажи по месяцам · 2026</div>
+      <div class="chart-sub">Allegro PL · обновляется каждую ночь автоматически</div>
+    </div>
+  </div>
+  <canvas id="monthlyChart" style="width:100%;max-height:320px"></canvas>
+  <div style="margin-top:1.25rem;border-top:1px solid #e8f4ef;padding-top:1rem">
+    <div style="font-size:11px;font-weight:700;color:#aaa;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">Сумма по месяцам</div>
+    <div style="overflow-x:auto"><table id="monthlyTable" class="mtable"></table></div>
+  </div>
+</div>
+
+<div class="footer">PROCARE · ALLEGRO DASHBOARD · 2026</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+var DATA = {days:[], months:[]};
+var SHOP_COLOR  = '#0F6E56';
+var SHOP_BG     = 'rgba(15,110,86,0.18)';
+var GOAL        = 100000; // целевой месячный оборот PLN — изменить при необходимости
+
+function fmt(n){
+  return n.toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function fmtK(n){
+  return n >= 1000 ? (n/1000).toFixed(1)+'k' : n.toFixed(0);
+}
+
+// ── GOAL BLOCK ────────────────────────────────────────────────
+function renderGoal(){
+  var el = document.getElementById('goalBlock');
+  if(!DATA.months || DATA.months.length === 0){ el.innerHTML=''; return; }
+  var all     = DATA.months;
+  var current = all[all.length - 1];
+  var best    = all.reduce(function(b,m){ return (m.ProCare||0)>(b.ProCare||0)?m:b; }, all[0]);
+  var val     = current.ProCare || 0;
+  var pct     = Math.min(100, Math.round(val / GOAL * 100));
+  el.innerHTML =
+    '<div class="goal">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">'
+    +'<div style="font-size:14px;font-weight:700;color:#1a1a1a">Цель месяца · ProCare</div>'
+    +'<div style="font-size:11px;color:#888">Лучший месяц: <b style="color:#0F6E56">'+fmt(best.ProCare||0)+' zł</b> ('+best.month+')</div>'
+    +'</div>'
+    +'<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px">'
+    +'<span style="font-size:24px;font-weight:800;color:#0F6E56">'+fmt(val)+' zł</span>'
+    +'<span style="font-size:13px;color:#aaa">/ '+fmt(GOAL)+' zł · '+current.month+'</span>'
+    +'</div>'
+    +'<div style="background:#e8f4ef;border-radius:6px;height:8px;overflow:hidden">'
+    +'<div style="background:#0F6E56;height:100%;width:'+pct+'%;border-radius:6px;transition:width 0.5s"></div>'
+    +'</div>'
+    +'<div style="font-size:11px;color:#0F6E56;margin-top:4px;font-weight:600">'+pct+'% от цели</div>'
+    +'</div>';
+}
+
+// ── DAILY CHART ───────────────────────────────────────────────
+function renderDailyChart(){
+  var days = DATA.days.slice(-30);
+  var labels = days.map(function(d){
+    var dt = d.date.slice(5); // MM-DD
+    return (d.partial ? '▸' : '') + dt;
+  });
+  var values  = days.map(function(d){ return d.ProCare || 0; });
+  var colors  = days.map(function(d){
+    return d.partial ? 'rgba(15,110,86,0.4)' : SHOP_BG;
+  });
+  var borders = days.map(function(d){
+    return d.partial ? 'rgba(15,110,86,0.5)' : SHOP_COLOR;
+  });
+
+  new Chart(document.getElementById('salesChart').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'ProCare',
+        data: values,
+        backgroundColor: colors,
+        borderColor: borders,
+        borderWidth: 2,
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: function(c){
+          var d = days[c.dataIndex];
+          return ' '+fmt(c.parsed.y)+' zł'+(d.partial?' (неполный день)':'');
+        }}}
+      },
+      scales: {
+        x: { grid:{color:'rgba(0,0,0,0.03)'}, ticks:{font:{size:10},color:'#aaa',maxRotation:45} },
+        y: { grid:{color:'rgba(0,0,0,0.04)'}, ticks:{font:{size:11},color:'#999',
+          callback: function(v){ return fmtK(v)+' zł'; }} }
+      }
+    }
+  });
+}
+
+// ── MONTHLY CHART ─────────────────────────────────────────────
+function renderMonthlyChart(){
+  var labels = DATA.months.map(function(m){ return m.month; });
+  var sales  = DATA.months.map(function(m){ return m.ProCare || 0; });
+  var costs  = DATA.months.map(function(m){
+    var c = m.costs || {};
+    return (c.commission||0)+(c.delivery||0)+(c.ads||0)+(c.subscription||0);
+  });
+
+  new Chart(document.getElementById('monthlyChart').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [
+        { label:'Продажи PLN', data:sales,
+          backgroundColor:SHOP_BG, borderColor:SHOP_COLOR, borderWidth:2, borderRadius:5 },
+        { label:'Расходы PLN', data:costs,
+          backgroundColor:'rgba(163,45,45,0.15)', borderColor:'#A32D2D', borderWidth:2, borderRadius:5 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: {
+        legend: { display:true, position:'bottom', labels:{font:{size:11},color:'#777',boxWidth:10,padding:14} },
+        tooltip: { callbacks: { label: function(c){ return ' '+c.dataset.label+': '+fmt(c.parsed.y)+' zł'; }}}
+      },
+      scales: {
+        x: { grid:{color:'rgba(0,0,0,0.03)'}, ticks:{font:{size:11},color:'#999'} },
+        y: { grid:{color:'rgba(0,0,0,0.03)'}, ticks:{font:{size:11},color:'#999',
+          callback: function(v){ return (v/1000).toFixed(0)+'k zł'; }} }
+      }
+    }
+  });
+
+  // Table
+  var html = '<thead><tr>'
+    +'<th style="text-align:left">Месяц</th>'
+    +'<th>Продажи</th><th>Расходы</th><th>Прибыль</th><th>Маржа</th>'
+    +'</tr></thead><tbody>';
+  DATA.months.forEach(function(m){
+    var s = m.ProCare || 0;
+    var c = m.costs || {};
+    var r = (c.commission||0)+(c.delivery||0)+(c.ads||0)+(c.subscription||0);
+    var p = s - r + (c.discount||0);
+    var mg = s > 0 ? (p/s*100).toFixed(1) : '0.0';
+    var color = p >= 0 ? '#0F6E56' : '#A32D2D';
+    html += '<tr>'
+      +'<td>'+m.month+'</td>'
+      +'<td>'+fmt(s)+' zł</td>'
+      +'<td style="color:#A32D2D">-'+fmt(r)+' zł</td>'
+      +'<td style="color:'+color+'">'+fmt(p)+' zł</td>'
+      +'<td style="color:'+color+'">'+mg+'%</td>'
+      +'</tr>';
+  });
+  html += '</tbody>';
+  document.getElementById('monthlyTable').innerHTML = html;
+}
+
+// ── LOAD ──────────────────────────────────────────────────────
+fetch('data.json')
+  .then(function(r){ return r.json(); })
+  .then(function(d){
+    if(!d.days && !d.months) return;
+    DATA = d;
+    renderGoal();
+    if(DATA.days && DATA.days.length > 0)    renderDailyChart();
+    if(DATA.months && DATA.months.length > 0) renderMonthlyChart();
+  })
+  .catch(function(){ console.warn('data.json не найден'); });
+</script>
+</body>
+</html>
