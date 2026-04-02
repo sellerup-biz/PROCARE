@@ -107,9 +107,35 @@ def get_token(shop):
 
 # ── Allegro API — каталог офферов ─────────────────────────────────────────────
 
+def get_category_names(token, category_ids):
+    """
+    Resolves category IDs → names via GET /sale/categories/{id}.
+    Returns {cat_id: cat_name}.
+    """
+    cat_names = {}
+    ids_to_fetch = list(set(category_ids))
+    print(f"  Resolving {len(ids_to_fetch)} category IDs...")
+    for cat_id in ids_to_fetch:
+        if not cat_id:
+            continue
+        try:
+            resp = requests.get(
+                f"https://api.allegro.pl/sale/categories/{cat_id}",
+                headers=hdrs(token),
+                timeout=10,
+            )
+            if resp.status_code == 200:
+                cat_names[cat_id] = resp.json().get("name", cat_id)
+            else:
+                cat_names[cat_id] = cat_id
+        except Exception:
+            cat_names[cat_id] = cat_id
+    return cat_names
+
+
 def get_offer_catalog(token):
     """GET /sale/offers (all pages) → {offer_id: {name, category}}"""
-    catalog = {}
+    raw_catalog = {}  # {offer_id: {name, cat_id}}
     offset  = 0
     print("  Fetching offer catalog...")
     while True:
@@ -126,16 +152,30 @@ def get_offer_catalog(token):
         for o in offers:
             oid      = o["id"]
             cat_info = o.get("category", {})
-            cat_name = cat_info.get("name", "Other") if isinstance(cat_info, dict) else "Other"
-            catalog[oid] = {
-                "name":     o.get("name", oid)[:120],
-                "category": cat_name,
+            # Allegro returns only category.id in sale/offers list
+            cat_id   = cat_info.get("id", "") if isinstance(cat_info, dict) else ""
+            raw_catalog[oid] = {
+                "name":   o.get("name", oid)[:120],
+                "cat_id": cat_id,
             }
-        print(f"    offset={offset}  loaded={len(catalog)}")
+        print(f"    offset={offset}  loaded={len(raw_catalog)}")
         if len(offers) < 1000:
             break
         offset += 1000
-    print(f"  Catalog: {len(catalog)} offers total")
+    print(f"  Catalog: {len(raw_catalog)} offers total")
+
+    # Resolve category IDs to names
+    all_cat_ids = [v["cat_id"] for v in raw_catalog.values() if v["cat_id"]]
+    cat_names   = get_category_names(token, all_cat_ids)
+
+    catalog = {}
+    for oid, info in raw_catalog.items():
+        cat_id   = info["cat_id"]
+        cat_name = cat_names.get(cat_id, "Остальные") if cat_id else "Остальные"
+        catalog[oid] = {
+            "name":     info["name"],
+            "category": cat_name,
+        }
     return catalog
 
 
