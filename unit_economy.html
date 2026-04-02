@@ -306,12 +306,21 @@ function getProductData(p) {
   return (a.sales > 0 || a.revenue > 0) ? {...a} : null;
 }
 
-function margin(d) {
-  if (!d) return 0;
-  return d.revenue - d.commission - d.ads - d.promo;
+function getCog(p) {
+  // Returns COG per unit (PLN) or null if not set
+  return (p && p.cog && p.cog[SHOP] != null) ? p.cog[SHOP] : null;
 }
-function marginPct(d) {
-  return (d && d.revenue > 0) ? margin(d) / d.revenue * 100 : 0;
+function hasCog(p) {
+  return getCog(p) !== null;
+}
+function margin(d, p) {
+  if (!d) return 0;
+  const cogUnit = p ? getCog(p) : null;
+  const cogTotal = (cogUnit !== null && d.sales > 0) ? cogUnit * d.sales : 0;
+  return d.revenue - d.commission - d.ads - d.promo - cogTotal;
+}
+function marginPct(d, p) {
+  return (d && d.revenue > 0) ? margin(d, p) / d.revenue * 100 : 0;
 }
 
 // ── Status calculation ─────────────────────────────────────────
@@ -319,14 +328,14 @@ function buildStatusCache() {
   const salesList = PRODUCTS.map(p => {
     const key = productKey(p);
     const a = aggCache && aggCache[key];
-    return {key, sales: a ? a.sales : 0, d: a ? {...a} : null};
+    return {key, p, sales: a ? a.sales : 0, d: a ? {...a} : null};
   }).sort((a, b) => b.sales - a.sales);
 
   const hitKeys = new Set();
   let hitCount = 0;
   for (const item of salesList) {
     if (hitCount >= HIT_TOP_N) break;
-    if (item.sales > 0 && marginPct(item.d) >= 0) {
+    if (item.sales > 0 && marginPct(item.d, item.p) >= 0) {
       hitKeys.add(item.key);
       hitCount++;
     }
@@ -337,7 +346,7 @@ function buildStatusCache() {
     const key = productKey(p);
     const d   = getProductData(p);
     if (!d || d.sales === 0) { statusCache[key] = 'sleeping'; continue; }
-    if (marginPct(d) < 0)    { statusCache[key] = 'losing'; continue; }
+    if (marginPct(d, p) < 0) { statusCache[key] = 'losing';   continue; }
     statusCache[key] = hitKeys.has(key) ? 'hit' : 'winning';
   }
 }
@@ -367,12 +376,13 @@ function showLoadingPill(on) {
 
 // ── Filtering & sorting ────────────────────────────────────────
 function getCounts() {
-  const r = {all: 0, hit: 0, winning: 0, losing: 0, sleeping: 0};
+  const r = {all: 0, hit: 0, winning: 0, losing: 0, sleeping: 0, nocog: 0};
   PRODUCTS.forEach(p => {
     if (curCat && p.category !== curCat) return;
     r.all++;
     const st = getStatus(p);
     if (r[st] !== undefined) r[st]++;
+    if (!hasCog(p)) r.nocog++;
   });
   return r;
 }
@@ -384,6 +394,7 @@ function getCategories() {
 function filteredProducts() {
   return PRODUCTS.filter(p => {
     if (curCat && p.category !== curCat) return false;
+    if (curFilter === 'nocog') return !hasCog(p);
     if (curFilter !== 'all' && getStatus(p) !== curFilter) return false;
     return true;
   });
@@ -452,6 +463,7 @@ function renderFilterBar() {
     {id: 'winning',  label: `↑ Выигрывает (${c.winning})`},
     {id: 'losing',   label: `✕ Проигрышные (${c.losing})`},
     {id: 'sleeping', label: `◎ Спящие (${c.sleeping})`},
+    {id: 'nocog',    label: `◌ Без COG (${c.nocog})`},
   ];
   const catList = getCategories();
   const catOpts = `<option value="">Все категории</option>` +
@@ -516,17 +528,19 @@ function renderTable() {
       </div>`;
     }
 
-    const m   = margin(d);
-    const mp  = marginPct(d);
+    const cogUnit = getCog(p);
+    const m   = margin(d, p);
+    const mp  = marginPct(d, p);
     const barW = maxRev > 0 ? Math.round(d.revenue / maxRev * 100) : 0;
     const barC = mp >= 35 ? '#0F6E56' : mp >= 15 ? '#BA7517' : mp >= 0 ? '#e5a43a' : '#A32D2D';
+    const cogTag = cogUnit !== null ? ` · <span style="color:#888">COG: <b>${fmt2(cogUnit)} zł</b></span>` : ` · <span style="color:#c8e6dc;font-size:9px">без COG</span>`;
     const avgPrice = d.sales > 0 ? ` · 🏷 <span style="color:#0F6E56;font-weight:700">${fmt2(d.revenue / d.sales)} zł</span>` : '';
 
     return `<div class="prod-row${selKey === key ? ' sel' : ''}" onclick="openSidebar('${escHtml(key)}')">
       <div>
         <div class="pr-badge ${BCLS[st]}">${BADGE[st]}</div>
         <div class="pr-name">${escHtml(p.name)}</div>
-        <div class="pr-meta">${metaBase}${catTag}${avgPrice}</div>
+        <div class="pr-meta">${metaBase}${catTag}${avgPrice}${cogTag}</div>
       </div>
       <div class="tc">${d.sales} шт.</div>
       <div class="tc am">${zl(d.revenue)}
@@ -568,8 +582,8 @@ function openSidebar(key) {
   const st = getStatus(p);
   selKey   = key;
 
-  const m  = d ? margin(d)    : 0;
-  const mp = d ? marginPct(d) : 0;
+  const m  = d ? margin(d, p)    : 0;
+  const mp = d ? marginPct(d, p) : 0;
 
   const oid = p.offers && p.offers[SHOP];
   const idsHtml = `Offer ID: <span class="id-val">${escHtml(oid || '—')}</span>`;
@@ -577,12 +591,27 @@ function openSidebar(key) {
   let metricsHtml = '', distHtml = '';
 
   if (d) {
+    const cogUnit  = getCog(p);
+    const cogTotal = (cogUnit !== null && d.sales > 0) ? cogUnit * d.sales : 0;
     const feePct   = d.revenue > 0 ? d.commission / d.revenue * 100 : 0;
     const adsPct   = d.revenue > 0 ? d.ads        / d.revenue * 100 : 0;
     const promoPct = d.revenue > 0 ? d.promo      / d.revenue * 100 : 0;
+    const cogPct   = d.revenue > 0 && cogTotal > 0 ? cogTotal / d.revenue * 100 : 0;
     const mgPct    = Math.max(0, mp);
     const roas     = (d.ads + d.promo) > 0 ? (d.revenue / (d.ads + d.promo)).toFixed(1) : '—';
     const avgPrice = d.sales > 0 ? fmt2(d.revenue / d.sales) + ' zł' : '—';
+
+    const cogCard = cogUnit !== null
+      ? `<div class="mc" style="border-color:#60a5fa;background:#eff6ff">
+          <div class="mc-l" style="color:#1d4ed8">Себестоимость (COG)</div>
+          <div class="mc-v" style="color:#1d4ed8">−${zl(cogTotal)}</div>
+          <div class="mc-s">${fmt2(cogUnit)} zł × ${d.sales} шт. · ${cogPct.toFixed(1)}% от выручки</div>
+        </div>`
+      : `<div class="mc" style="border-color:#e0e0e0;background:#fafafa">
+          <div class="mc-l" style="color:#aaa">Себестоимость (COG)</div>
+          <div class="mc-v" style="color:#ccc">—</div>
+          <div class="mc-s" style="color:#ccc">COG не задан</div>
+        </div>`;
 
     metricsHtml = `
     <div class="mc2">
@@ -593,8 +622,8 @@ function openSidebar(key) {
       </div>
       <div class="mc ${m >= 0 ? 'gr' : 'rd'}">
         <div class="mc-l">Чистая маржа</div>
-        <div class="mc-v">${m >= 0 ? '' : '−'}${zl(m)}</div>
-        <div class="mc-s">${mp.toFixed(1)}% от выручки</div>
+        <div class="mc-v">${m >= 0 ? '' : '−'}${zl(Math.abs(m))}</div>
+        <div class="mc-s">${mp.toFixed(1)}% от выручки${cogUnit === null ? ' (без COG)' : ''}</div>
       </div>
       <div class="mc rd">
         <div class="mc-l">Комиссия Allegro</div>
@@ -616,10 +645,11 @@ function openSidebar(key) {
         <div class="mc-v" style="color:#7C3AED">−${zl(d.promo)}</div>
         <div class="mc-s">${promoPct.toFixed(1)}% от выручки</div>
       </div>
+      ${cogCard}
     </div>`;
 
     // Distribution bar
-    const total = feePct + adsPct + promoPct + mgPct;
+    const total = feePct + adsPct + promoPct + cogPct + mgPct;
     const w = v => total > 0 ? Math.round(v / total * 100) + '%' : '0%';
     distHtml = `
     <div class="dist-sec">
@@ -628,12 +658,14 @@ function openSidebar(key) {
         <div class="dist-seg" style="width:${w(feePct)};background:#A32D2D;border-radius:5px 0 0 5px"></div>
         <div class="dist-seg" style="width:${w(adsPct)};background:#BA7517"></div>
         <div class="dist-seg" style="width:${w(promoPct)};background:#7C3AED"></div>
+        ${cogPct > 0 ? `<div class="dist-seg" style="width:${w(cogPct)};background:#1d4ed8"></div>` : ''}
         <div class="dist-seg" style="width:${w(mgPct)};background:#0F6E56;border-radius:0 5px 5px 0"></div>
       </div>
       <div class="dist-leg">
         <div class="dl"><div class="dl-dot" style="background:#A32D2D"></div>Комиссия Allegro<span class="dl-v">${feePct.toFixed(0)}%</span></div>
         <div class="dl"><div class="dl-dot" style="background:#BA7517"></div>Реклама CPC<span class="dl-v">${adsPct.toFixed(0)}%</span></div>
         <div class="dl"><div class="dl-dot" style="background:#7C3AED"></div>Промование<span class="dl-v">${promoPct.toFixed(0)}%</span></div>
+        ${cogPct > 0 ? `<div class="dl"><div class="dl-dot" style="background:#1d4ed8"></div>Себестоимость<span class="dl-v">${cogPct.toFixed(0)}%</span></div>` : ''}
         <div class="dl"><div class="dl-dot" style="background:#0F6E56"></div>Маржа<span class="dl-v">${mgPct.toFixed(0)}%</span></div>
       </div>
     </div>`;
@@ -713,7 +745,7 @@ function downloadCSV() {
 
   const headers = ['Название', 'EAN', 'Категория', 'Offer ID', 'Статус',
     'Продажи (шт)', 'Доход (zł)', 'Комиссия (zł)', 'Реклама (zł)', 'Промо (zł)',
-    'Маржа (zł)', 'Маржа (%)'];
+    'COG за шт (zł)', 'COG итого (zł)', 'Маржа (zł)', 'Маржа (%)'];
 
   const statusLabels = {hit: 'Хит', winning: 'Выигрывает', losing: 'Проигрышный', sleeping: 'Спящий'};
   const csvCell = v => {
@@ -728,12 +760,15 @@ function downloadCSV() {
     const oid = (p.offers && p.offers[SHOP]) || '';
 
     const row = [p.name || '', p.ean || '', p.category || '', oid, statusLabels[st] || st];
+    const cogUnit = getCog(p);
     if (d) {
-      const m  = Math.round(margin(d)    * 100) / 100;
-      const mp = Math.round(marginPct(d) * 10)  / 10;
-      row.push(d.sales, d.revenue, d.commission, d.ads, d.promo, m, mp);
+      const cogTotal = (cogUnit !== null && d.sales > 0) ? Math.round(cogUnit * d.sales * 100) / 100 : '';
+      const m  = Math.round(margin(d, p)    * 100) / 100;
+      const mp = Math.round(marginPct(d, p) * 10)  / 10;
+      row.push(d.sales, d.revenue, d.commission, d.ads, d.promo,
+               cogUnit !== null ? cogUnit : '', cogTotal, m, mp);
     } else {
-      row.push(0, '', '', '', '', '', '');
+      row.push(0, '', '', '', '', cogUnit !== null ? cogUnit : '', '', '', '');
     }
     rows.push(row.map(csvCell).join(','));
   }
