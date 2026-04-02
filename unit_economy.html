@@ -8,68 +8,124 @@
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI',system-ui,sans-serif;background:#F0F7F4;color:#1a1a1a;min-height:100vh;padding:1.5rem}
 
+/* ── HEADER ── */
 .hdr{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid #c8e6dc;border-radius:14px;padding:12px 18px;margin-bottom:1.25rem;flex-wrap:wrap}
 .logo{width:38px;height:38px;background:#0F6E56;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0;text-align:center;line-height:1.2}
-.hdr h1{font-size:20px;font-weight:700;letter-spacing:2px}
+.hdr h1{font-size:20px;font-weight:700;letter-spacing:2px;color:#1a1a1a}
 .hdr p{font-size:11px;color:#888;margin-top:2px}
 .hdr-nav{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
-.btn-nav{font-size:12px;padding:7px 16px;border-radius:8px;background:#edfaf5;color:#0F6E56;border:1px solid #c8e6dc;cursor:pointer;text-decoration:none;display:inline-block;font-weight:500;white-space:nowrap}
+.btn-nav{font-size:12px;padding:7px 16px;border-radius:8px;background:#edfaf5;color:#0F6E56;border:1px solid #c8e6dc;cursor:pointer;text-decoration:none;display:inline-block;font-weight:500;white-space:nowrap;transition:all .15s}
 .btn-nav:hover{background:#d4f2e7;border-color:#0F6E56}
 
+/* ── LOADING ── */
 .loading{padding:64px;text-align:center;color:#aaa;font-size:13px}
 .loading-spin{display:inline-block;width:28px;height:28px;border:3px solid #c8e6dc;border-top-color:#0F6E56;border-radius:50%;animation:spin .8s linear infinite;margin-bottom:12px}
 @keyframes spin{to{transform:rotate(360deg)}}
 
-/* FILTER BAR */
-.filter-bar{background:#fff;border:1px solid #c8e6dc;border-radius:12px;padding:10px 14px;margin-bottom:1rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.fpill{font-size:12px;padding:5px 14px;border-radius:20px;border:1px solid #c8e6dc;background:#f5fdf9;color:#555;cursor:pointer;font-weight:500;transition:all .15s;white-space:nowrap}
-.fpill:hover:not(.on){border-color:#0F6E56;color:#0F6E56;background:#edfaf5}
-.fpill.on{background:#0F6E56;color:#fff;border-color:#0F6E56;font-weight:700}
-.f-sep{width:1px;height:22px;background:#c8e6dc;flex-shrink:0}
-.cat-sel{font-size:12px;padding:5px 10px;border:1px solid #c8e6dc;border-radius:8px;background:#f5fdf9;color:#555;cursor:pointer;outline:none;font-family:inherit}
-.srch{font-size:12px;padding:5px 10px;border:1px solid #c8e6dc;border-radius:8px;background:#f5fdf9;color:#1a1a1a;outline:none;font-family:inherit;min-width:180px}
-.srch:focus{border-color:#0F6E56}
-.sort-wrap{margin-left:auto;display:flex;align-items:center;gap:6px}
-.sort-lbl{font-size:11px;color:#aaa}
-.sort-sel{font-size:12px;padding:5px 10px;border:1px solid #c8e6dc;border-radius:8px;background:#f5fdf9;color:#555;cursor:pointer;outline:none;font-family:inherit}
-
-/* DATE BAR */
+/* ── DATE BAR ── */
 .date-bar{background:#fff;border:1px solid #c8e6dc;border-radius:12px;padding:10px 14px;margin-bottom:1rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.dpreset{font-size:12px;padding:5px 14px;border-radius:20px;border:1px solid #c8e6dc;background:#f5fdf9;color:#555;cursor:pointer;font-weight:500;transition:all .15s;white-space:nowrap}
+.dpreset{font-size:12px;padding:5px 14px;border-radius:20px;border:1px solid #c8e6dc;background:#f5fdf9;color:#555;cursor:pointer;font-weight:500;transition:all .15s;white-space:nowrap;display:inline-flex;align-items:center;gap:5px}
 .dpreset:hover:not(.on){border-color:#0F6E56;color:#0F6E56;background:#edfaf5}
 .dpreset.on{background:#0F6E56;color:#fff;border-color:#0F6E56;font-weight:700}
+.dpreset.d-30.on{background:#185FA5;border-color:#185FA5}
 .d-sep{width:1px;height:22px;background:#c8e6dc;flex-shrink:0}
 .date-inputs{display:flex;align-items:center;gap:7px}
 .date-lbl{font-size:11px;color:#aaa;white-space:nowrap}
-.date-inp{font-size:12px;padding:5px 9px;border:1px solid #c8e6dc;border-radius:8px;background:#f5fdf9;color:#1a1a1a;cursor:pointer;outline:none;font-family:inherit}
+.date-inp{font-size:12px;padding:5px 9px;border:1px solid #c8e6dc;border-radius:8px;background:#f5fdf9;color:#1a1a1a;cursor:pointer;outline:none;font-family:inherit;transition:border-color .15s}
 .date-inp:focus{border-color:#0F6E56}
-.date-arrow{font-size:12px;color:#bbb}
-.d-pill{margin-left:auto;font-size:10px;padding:3px 9px;border-radius:4px;background:#e8f4ef;color:#085041;font-weight:600}
+.date-inp::-webkit-calendar-picker-indicator{opacity:.5;cursor:pointer}
+.date-inp.custom-active{border-color:#0F6E56;background:#edfaf5;color:#0F6E56;font-weight:600}
+.date-arrow{font-size:12px;color:#aaa}
+.date-badge{margin-left:auto;display:flex;align-items:center;gap:6px}
+.d-pill{font-size:10px;padding:3px 9px;border-radius:4px;background:#f0faf6;color:#0F6E56;font-weight:600;white-space:nowrap;border:1px solid #c8e6dc}
+.d-pill.loading-pill{background:#fff8e6;color:#BA7517;border-color:#f0d080;animation:pulse .8s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
 
-/* PRODUCT TABLE */
-.tbl-wrap{background:#fff;border:1px solid #c8e6dc;border-radius:14px;overflow:hidden;margin-bottom:1rem}
-.tbl-hdr-row{display:grid;grid-template-columns:2fr 90px 120px 100px 100px 100px 90px;padding:9px 16px;border-bottom:2px solid #e8f4ef;background:#f5fdf9}
-.tbl-hdr-row span{font-size:10px;font-weight:700;color:#aaa;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;user-select:none;white-space:nowrap}
-.tbl-hdr-row span:hover{color:#0F6E56}
-.tbl-hdr-row span:not(:first-child){text-align:right}
+/* ── FILTER BAR ── */
+.filter-bar{background:#fff;border:1px solid #c8e6dc;border-radius:12px;padding:10px 14px;margin-bottom:1rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.fpill{font-size:12px;padding:5px 14px;border-radius:20px;border:1px solid #c8e6dc;background:#f5fdf9;color:#555;cursor:pointer;font-weight:500;transition:all .15s;white-space:nowrap}
+.fpill:hover:not(.active){border-color:#0F6E56;color:#0F6E56;background:#edfaf5}
+.fpill.active{background:#0F6E56;color:#fff;border-color:#0F6E56;font-weight:700}
+.f-sep{width:1px;height:22px;background:#c8e6dc;flex-shrink:0}
+.cat-sel{font-size:12px;padding:5px 10px;border:1px solid #c8e6dc;border-radius:8px;background:#f5fdf9;color:#555;cursor:pointer;outline:none;font-family:inherit;transition:border-color .15s}
+.cat-sel:focus{border-color:#0F6E56}
+.btn-csv{font-size:12px;padding:5px 13px;border-radius:8px;border:1px solid #c8e6dc;background:#edfaf5;color:#0F6E56;cursor:pointer;font-weight:600;font-family:inherit;transition:all .15s;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;margin-left:auto}
+.btn-csv:hover{background:#0F6E56;color:#fff;border-color:#0F6E56}
 
-.prod-row{display:grid;grid-template-columns:2fr 90px 120px 100px 100px 100px 90px;padding:10px 16px;border-bottom:1px solid #f0faf6;cursor:pointer;transition:background .1s;align-items:center}
+/* ── TABLE ── */
+.tbl-wrap{background:#fff;border:1px solid #c8e6dc;border-radius:12px;overflow:hidden;margin-bottom:1rem}
+.tbl-head{display:grid;grid-template-columns:1fr 90px 130px 120px 130px 22px;padding:9px 16px;border-bottom:2px solid #e8f5ef;background:#f5fdf9;align-items:center}
+.tbl-head span{font-size:10px;font-weight:700;color:#888;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;user-select:none;white-space:nowrap}
+.tbl-head span:hover{color:#0F6E56}
+.tbl-head span.sorted{color:#0F6E56}
+.tbl-head span:not(:first-child){text-align:right}
+
+.prod-row{display:grid;grid-template-columns:1fr 90px 130px 120px 130px 22px;padding:10px 16px;border-bottom:1px solid #f0faf6;cursor:pointer;transition:background .1s;align-items:center}
 .prod-row:last-child{border-bottom:none}
 .prod-row:hover{background:#f5fdf9}
-.pr-name{font-size:12px;font-weight:600;color:#1a1a1a;line-height:1.3}
-.pr-cat{font-size:10px;color:#aaa;margin-top:2px}
-.pr-val{font-size:12px;text-align:right}
-.pr-val.pos{color:#0F6E56;font-weight:600}
-.pr-val.neg{color:#A32D2D;font-weight:600}
-.margin-bar{height:4px;border-radius:2px;margin-top:3px}
+.prod-row.sel{background:#edfaf5;border-left:3px solid #0F6E56}
+.pr-name{font-size:13px;font-weight:600;color:#1a1a1a;line-height:1.3}
+.pr-meta{font-size:10px;color:#888;margin-top:3px;line-height:1.8}
+.pr-badge{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;padding:1px 7px;border-radius:3px;margin-bottom:3px;letter-spacing:.2px}
+.b-hit{background:#fff3e0;color:#BA7517;border:1px solid #f0d080}
+.b-winning{background:#e8f5ef;color:#0F6E56;border:1px solid #b2dfcf}
+.b-losing{background:#fdecea;color:#A32D2D;border:1px solid #f5b8b8}
+.b-sleeping{background:#f5f5f5;color:#888;border:1px solid #ddd}
+.tc{font-size:13px;text-align:right}
+.tc small{display:block;font-size:10px;color:#aaa;margin-top:1px}
+.tc.gr{color:#0F6E56;font-weight:600}
+.tc.rd{color:#A32D2D;font-weight:600}
+.tc.am{color:#BA7517}
+.pbar{width:100%;height:3px;background:#e8f5ef;border-radius:2px;margin-top:4px}
+.pbar-f{height:100%;border-radius:2px}
+.tc-arrow{font-size:12px;color:#c8e6dc;text-align:right;transition:color .1s}
+.prod-row:hover .tc-arrow{color:#0F6E56}
 
-.pagination{display:flex;align-items:center;gap:8px;padding:10px 16px;border-top:1px solid #e8f4ef;font-size:12px;color:#777;background:#f5fdf9}
-.pg-btn{padding:4px 12px;border:1px solid #c8e6dc;border-radius:6px;background:#fff;cursor:pointer;font-size:12px}
-.pg-btn:hover{border-color:#0F6E56;color:#0F6E56}
-.pg-btn:disabled{opacity:.4;cursor:default}
+.empty{padding:48px;text-align:center;color:#aaa;font-size:13px}
 
-.no-data{padding:48px;text-align:center;color:#aaa;font-size:13px}
-.footer{text-align:center;font-size:11px;color:#ccc;margin-top:.5rem;letter-spacing:1px}
+/* ── PAGINATION ── */
+.pagination{display:flex;align-items:center;justify-content:center;gap:5px;margin-bottom:1.5rem;flex-wrap:wrap}
+.pg{font-size:12px;padding:6px 11px;border-radius:7px;border:1px solid #c8e6dc;background:#fff;color:#555;cursor:pointer;font-family:inherit;transition:all .15s}
+.pg:hover:not(:disabled):not(.pgon){border-color:#0F6E56;color:#0F6E56;background:#edfaf5}
+.pg.pgon{background:#0F6E56;color:#fff;border-color:#0F6E56;font-weight:700}
+.pg:disabled{color:#c8e6dc;border-color:#e8f5ef;cursor:default;background:#f5fdf9}
+.pg-info{font-size:11px;color:#aaa;padding:0 6px}
+
+/* ── OVERLAY & SIDEBAR ── */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:99}
+.overlay.open{display:block}
+.sidebar{position:fixed;top:0;right:-500px;width:480px;max-width:100vw;height:100vh;background:#fff;border-left:2px solid #c8e6dc;z-index:100;overflow-y:auto;transition:right .25s cubic-bezier(.4,0,.2,1);box-shadow:-6px 0 40px rgba(15,110,86,.08)}
+.sidebar.open{right:0}
+.sb-head{padding:16px 18px 14px;border-bottom:1px solid #e8f5ef;position:sticky;top:0;background:#fff;z-index:1}
+.sb-close{position:absolute;top:14px;right:14px;width:28px;height:28px;border-radius:50%;border:1px solid #c8e6dc;background:#f5fdf9;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;color:#888;transition:all .15s}
+.sb-close:hover{background:#fdecea;border-color:#A32D2D;color:#A32D2D}
+.sb-name{font-size:18px;font-weight:800;color:#1a1a1a;margin:6px 0 6px;padding-right:36px;line-height:1.3}
+.sb-ids{font-size:11px;color:#888;line-height:2}
+.id-val{font-family:monospace;color:#555;font-size:11px}
+.sb-body{padding:14px 18px}
+
+/* ── METRIC CARDS ── */
+.mc2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.mc{background:#f5fdf9;border:1px solid #c8e6dc;border-radius:10px;padding:12px 14px}
+.mc-l{font-size:10px;color:#888;margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.mc-v{font-size:19px;font-weight:800;color:#1a1a1a;line-height:1.1}
+.mc-s{font-size:10px;color:#aaa;margin-top:3px}
+.mc.gr .mc-v{color:#0F6E56}
+.mc.rd .mc-v{color:#A32D2D}
+.mc.am .mc-v{color:#BA7517}
+
+/* ── DISTRIBUTION BAR ── */
+.dist-sec{margin-bottom:4px}
+.dist-lbl{font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
+.dist-bar{height:10px;border-radius:5px;overflow:hidden;display:flex;gap:1px;margin-bottom:10px;background:#e8f5ef}
+.dist-seg{height:100%;transition:width .3s}
+.dist-leg{display:flex;flex-wrap:wrap;gap:8px 14px}
+.dl{display:flex;align-items:center;gap:5px;font-size:10px;color:#888}
+.dl-dot{width:9px;height:9px;border-radius:2px;flex-shrink:0}
+.dl-v{font-weight:700;color:#1a1a1a;margin-left:2px}
+
+/* ── FOOTER ── */
+.footer{text-align:center;font-size:11px;color:#aaa;margin-top:.5rem;letter-spacing:1px}
 </style>
 </head>
 <body>
@@ -78,7 +134,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F0F7F4;color:#1a1a1
   <div class="logo">PRO<br>CARE</div>
   <div>
     <h1>PROCARE · Юнит-экономика</h1>
-    <p>Экономика по офферам · ProCare · Allegro PL</p>
+    <p id="hdrSub">Юнит-экономика · ProCare · Allegro PL · загрузка…</p>
   </div>
   <div class="hdr-nav">
     <a href="index.html" class="btn-nav">← Главный</a>
@@ -87,204 +143,652 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F0F7F4;color:#1a1a1
   </div>
 </div>
 
-<!-- DATE BAR -->
-<div class="date-bar">
-  <span class="dpreset on" onclick="setPreset(7,this)">7 дней</span>
-  <span class="dpreset" onclick="setPreset(30,this)">30 дней</span>
-  <span class="dpreset" onclick="setPreset(90,this)">3 месяца</span>
-  <div class="d-sep"></div>
-  <div class="date-inputs">
-    <span class="date-lbl">с</span>
-    <input type="date" id="dateFrom" class="date-inp" onchange="applyCustom()">
-    <span class="date-arrow">→</span>
-    <span class="date-lbl">по</span>
-    <input type="date" id="dateTo" class="date-inp" onchange="applyCustom()">
-  </div>
-  <span class="d-pill" id="period-pill">7 дней</span>
-</div>
-
-<!-- FILTER BAR -->
-<div class="filter-bar">
-  <span class="fpill on" onclick="setFilter('all',this)">Все офферы</span>
-  <span class="fpill" onclick="setFilter('active',this)">С продажами</span>
-  <span class="fpill" onclick="setFilter('notsold',this)">Без продаж</span>
-  <div class="f-sep"></div>
-  <select class="cat-sel" id="catFilter" onchange="render()">
-    <option value="">Все категории</option>
-  </select>
-  <input type="text" class="srch" id="srch" placeholder="Поиск по названию..." oninput="render()">
-  <div class="sort-wrap">
-    <span class="sort-lbl">Сорт:</span>
-    <select class="sort-sel" id="sortSel" onchange="render()">
-      <option value="revenue">Выручка ↓</option>
-      <option value="orders">Заказы ↓</option>
-      <option value="margin">Маржа ↓</option>
-      <option value="name">Название ↑</option>
-    </select>
+<div id="mainContent">
+  <div class="loading">
+    <div class="loading-spin"></div><br>
+    Загрузка каталога и данных…
   </div>
 </div>
 
-<!-- TABLE -->
-<div class="tbl-wrap">
-  <div class="tbl-hdr-row">
-    <span>Оффер / Категория</span>
-    <span style="text-align:right">Заказы</span>
-    <span style="text-align:right">Выручка, zł</span>
-    <span style="text-align:right">Комиссия</span>
-    <span style="text-align:right">Реклама</span>
-    <span style="text-align:right">Прибыль</span>
-    <span style="text-align:right">Маржа</span>
-  </div>
-  <div id="prod-list"></div>
-  <div class="pagination" id="pagination"></div>
-</div>
+<div class="overlay" id="overlay" onclick="closeSidebar()"></div>
+<div class="sidebar" id="sidebar"></div>
 
-<div class="footer">PROCARE · ЮНИТ-ЭКОНОМИКА · 2026</div>
+<div class="footer" id="footer">PROCARE · Юнит-экономика</div>
 
 <script>
-var PRODUCTS = [];
-var curFilter = 'all';
-var curPage   = 0;
-var PAGE_SIZE = 50;
-var dateFrom = '', dateTo = '';
+// ── Constants ──────────────────────────────────────────────────
+const SHOP     = 'ProCare';
+const PER_PAGE = 50;
+const HIT_TOP_N = 50;
+const BADGE = {hit:'★ Хит', winning:'↑ Выигрывает', losing:'✕ Проигрышный', sleeping:'◎ Спящий'};
+const BCLS  = {hit:'b-hit', winning:'b-winning', losing:'b-losing', sleeping:'b-sleeping'};
 
-function fmt(n){ return n.toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2}); }
-function fmtN(n){ return Math.round(n).toLocaleString('ru-RU'); }
-function today(){ return new Date().toISOString().slice(0,10); }
-function addDays(d,n){ var dt=new Date(d); dt.setDate(dt.getDate()+n); return dt.toISOString().slice(0,10); }
+// ── App state ──────────────────────────────────────────────────
+let PRODUCTS    = [];       // [{ean, name, category, offers: {ProCare: offerId}}]
+let offerToKey  = {};       // offerId → product key
+let keyToIdx    = {};       // product key → index in PRODUCTS[]
 
-function setPreset(days, el){
-  document.querySelectorAll('.dpreset').forEach(function(e){ e.classList.remove('on'); });
-  el.classList.add('on');
-  dateTo   = today();
-  dateFrom = addDays(dateTo, -days+1);
-  document.getElementById('dateFrom').value = dateFrom;
-  document.getElementById('dateTo').value   = dateTo;
-  document.getElementById('period-pill').textContent = days+' дней';
-  curPage = 0; render();
+let monthData   = {};       // {ym: {month, days}} — loaded monthly file cache
+let loadingYMs  = new Set();
+let aggCache    = null;     // {key: {sales, revenue, commission, ads, promo}}
+let statusCache = null;     // {key: status_string}
+
+let DATE_MIN = '2026-01-01';
+let DATE_MAX = '2026-04-02';
+
+// UI state
+let curFilter  = 'all';
+let curCat     = '';
+let sortCol    = 'revenue';
+let sortDir    = 'desc';
+let curPage    = 1;
+let selKey     = null;
+let datePreset = 'all';
+let dateFrom   = DATE_MIN;
+let dateTo     = DATE_MAX;
+let dataReady  = false;
+
+// ── Helpers ────────────────────────────────────────────────────
+function zl(n) {
+  return Math.round(Math.abs(n)).toLocaleString('ru-RU') + ' zł';
+}
+function fmt2(n) {
+  return (Math.round(n * 100) / 100).toFixed(2).replace('.', ',');
+}
+function escHtml(s) {
+  return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function datesInRange(from, to) {
+  const dates = [];
+  let d = new Date(from);
+  const end = new Date(to);
+  while (d <= end) {
+    dates.push(d.toISOString().slice(0, 10));
+    d.setDate(d.getDate() + 1);
+  }
+  return dates;
+}
+function monthsInRange(from, to) {
+  const seen = new Set(), result = [];
+  for (const ds of datesInRange(from, to)) {
+    const ym = ds.slice(0, 7);
+    if (!seen.has(ym)) { seen.add(ym); result.push(ym); }
+  }
+  return result;
+}
+function productKey(p) {
+  if (p.ean) return 'ean:' + p.ean;
+  const oid = p.offers && p.offers[SHOP];
+  return 'offer:' + (oid || Math.random());
+}
+function getPeriodDays() {
+  const from = new Date(dateFrom), to = new Date(dateTo);
+  return Math.max(1, Math.round((to - from) / 86400000) + 1);
 }
 
-function applyCustom(){
-  document.querySelectorAll('.dpreset').forEach(function(e){ e.classList.remove('on'); });
-  dateFrom = document.getElementById('dateFrom').value;
-  dateTo   = document.getElementById('dateTo').value;
-  if(dateFrom && dateTo){ curPage=0; render(); }
-}
+// ── Data loading ───────────────────────────────────────────────
+async function loadProducts() {
+  const resp = await fetch('products.json?_=' + Date.now());
+  if (!resp.ok) throw new Error('products.json не найден');
+  const data = await resp.json();
+  PRODUCTS = data.products || [];
 
-function setFilter(f, el){
-  document.querySelectorAll('.fpill').forEach(function(e){ e.classList.remove('on'); });
-  el.classList.add('on');
-  curFilter = f;
-  curPage = 0; render();
-}
-
-function getFiltered(){
-  var catF  = document.getElementById('catFilter').value;
-  var srch  = document.getElementById('srch').value.toLowerCase();
-  var sortBy= document.getElementById('sortSel').value;
-
-  // Aggregate by product over date range
-  var aggMap = {};
-  PRODUCTS.forEach(function(p){
-    if(p.date < dateFrom || p.date > dateTo) return;
-    var k = p.ean || p.name;
-    if(!aggMap[k]) aggMap[k] = {name:p.name, category:p.category||'Остальные',
-      orders:0, revenue:0, commission:0, ads:0, profit:0, ean:p.ean};
-    aggMap[k].orders     += p.orders     || 0;
-    aggMap[k].revenue    += p.revenue    || 0;
-    aggMap[k].commission += p.commission || 0;
-    aggMap[k].ads        += p.ads        || 0;
-    aggMap[k].profit     += p.profit     || 0;
-  });
-
-  var arr = Object.values(aggMap);
-
-  // Filters
-  if(curFilter === 'active')  arr = arr.filter(function(p){ return p.orders > 0; });
-  if(curFilter === 'notsold') arr = arr.filter(function(p){ return p.orders === 0; });
-  if(catF) arr = arr.filter(function(p){ return p.category === catF; });
-  if(srch) arr = arr.filter(function(p){ return p.name.toLowerCase().indexOf(srch) !== -1; });
-
-  // Sort
-  arr.sort(function(a,b){
-    if(sortBy === 'name')   return a.name.localeCompare(b.name);
-    if(sortBy === 'margin'){
-      var ma = a.revenue > 0 ? a.profit/a.revenue : 0;
-      var mb = b.revenue > 0 ? b.profit/b.revenue : 0;
-      return mb-ma;
+  offerToKey = {};
+  keyToIdx   = {};
+  PRODUCTS.forEach((p, i) => {
+    const k = productKey(p);
+    keyToIdx[k] = i;
+    if (p.offers && p.offers[SHOP]) {
+      offerToKey[p.offers[SHOP]] = k;
     }
-    return b[sortBy]-a[sortBy];
   });
-  return arr;
+  return data;
 }
 
-function render(){
-  var arr = getFiltered();
-  var page = arr.slice(curPage*PAGE_SIZE, (curPage+1)*PAGE_SIZE);
+async function loadMonthData(ym) {
+  if (monthData[ym] !== undefined || loadingYMs.has(ym)) return;
+  loadingYMs.add(ym);
+  try {
+    const resp = await fetch(`unit_data/${ym}.json?_=` + Date.now());
+    monthData[ym] = resp.ok ? await resp.json() : {month: ym, days: {}};
+  } catch(e) {
+    monthData[ym] = {month: ym, days: {}};
+  } finally {
+    loadingYMs.delete(ym);
+  }
+}
 
-  if(arr.length === 0){
-    document.getElementById('prod-list').innerHTML =
-      '<div class="no-data">Нет данных за выбранный период.<br><small>Запусти <b>fetch_offers.yml</b> для загрузки данных по офферам.</small></div>';
+async function ensureMonthsLoaded(from, to) {
+  const yms = monthsInRange(from, to);
+  await Promise.all(yms.map(ym => loadMonthData(ym)));
+}
+
+// ── Aggregation engine ─────────────────────────────────────────
+// vals[0]=qty, vals[1]=revenue, vals[2]=commission, vals[3]=ads, vals[4]=promo
+function buildAggCache(from, to) {
+  const agg = {};
+
+  for (const date of datesInRange(from, to)) {
+    const ym = date.slice(0, 7);
+    const md = monthData[ym];
+    if (!md) continue;
+    const dayEntry = md.days && md.days[date];
+    if (!dayEntry || !dayEntry[SHOP]) continue;
+
+    for (const [oid, vals] of Object.entries(dayEntry[SHOP])) {
+      const key = offerToKey[oid];
+      if (!key) continue;
+      if (!agg[key]) agg[key] = {sales: 0, revenue: 0, commission: 0, ads: 0, promo: 0};
+      const a = agg[key];
+      a.sales      += vals[0] || 0;
+      a.revenue    += vals[1] || 0;
+      a.commission += vals[2] || 0;
+      a.ads        += vals[3] || 0;
+      a.promo      += vals[4] || 0;
+    }
+  }
+
+  // Round
+  for (const a of Object.values(agg)) {
+    a.revenue    = Math.round(a.revenue    * 100) / 100;
+    a.commission = Math.round(a.commission * 100) / 100;
+    a.ads        = Math.round(a.ads        * 100) / 100;
+    a.promo      = Math.round(a.promo      * 100) / 100;
+  }
+  aggCache = agg;
+}
+
+// ── Per-product data getters ───────────────────────────────────
+function getProductData(p) {
+  const key = productKey(p);
+  if (!aggCache || !aggCache[key]) return null;
+  const a = aggCache[key];
+  return (a.sales > 0 || a.revenue > 0) ? {...a} : null;
+}
+
+function margin(d) {
+  if (!d) return 0;
+  return d.revenue - d.commission - d.ads - d.promo;
+}
+function marginPct(d) {
+  return (d && d.revenue > 0) ? margin(d) / d.revenue * 100 : 0;
+}
+
+// ── Status calculation ─────────────────────────────────────────
+function buildStatusCache() {
+  const salesList = PRODUCTS.map(p => {
+    const key = productKey(p);
+    const a = aggCache && aggCache[key];
+    return {key, sales: a ? a.sales : 0, d: a ? {...a} : null};
+  }).sort((a, b) => b.sales - a.sales);
+
+  const hitKeys = new Set();
+  let hitCount = 0;
+  for (const item of salesList) {
+    if (hitCount >= HIT_TOP_N) break;
+    if (item.sales > 0 && marginPct(item.d) >= 0) {
+      hitKeys.add(item.key);
+      hitCount++;
+    }
+  }
+
+  statusCache = {};
+  for (const p of PRODUCTS) {
+    const key = productKey(p);
+    const d   = getProductData(p);
+    if (!d || d.sales === 0) { statusCache[key] = 'sleeping'; continue; }
+    if (marginPct(d) < 0)    { statusCache[key] = 'losing'; continue; }
+    statusCache[key] = hitKeys.has(key) ? 'hit' : 'winning';
+  }
+}
+
+function getStatus(p) {
+  return (statusCache && statusCache[productKey(p)]) || 'sleeping';
+}
+
+// ── Refresh on period change ───────────────────────────────────
+async function refresh() {
+  if (!dataReady) return;
+  aggCache    = null;
+  statusCache = null;
+  showLoadingPill(true);
+  await ensureMonthsLoaded(dateFrom, dateTo);
+  showLoadingPill(false);
+  buildAggCache(dateFrom, dateTo);
+  buildStatusCache();
+  curPage = 1;
+  renderAll();
+}
+
+function showLoadingPill(on) {
+  const el = document.getElementById('loadPill');
+  if (el) el.style.display = on ? '' : 'none';
+}
+
+// ── Filtering & sorting ────────────────────────────────────────
+function getCounts() {
+  const r = {all: 0, hit: 0, winning: 0, losing: 0, sleeping: 0};
+  PRODUCTS.forEach(p => {
+    if (curCat && p.category !== curCat) return;
+    r.all++;
+    const st = getStatus(p);
+    if (r[st] !== undefined) r[st]++;
+  });
+  return r;
+}
+
+function getCategories() {
+  return [...new Set(PRODUCTS.map(p => p.category).filter(Boolean))].sort();
+}
+
+function filteredProducts() {
+  return PRODUCTS.filter(p => {
+    if (curCat && p.category !== curCat) return false;
+    if (curFilter !== 'all' && getStatus(p) !== curFilter) return false;
+    return true;
+  });
+}
+
+function sortedProducts(arr) {
+  return [...arr].sort((a, b) => {
+    const da = getProductData(a) || {sales: 0, revenue: 0, commission: 0, ads: 0, promo: 0};
+    const db = getProductData(b) || {sales: 0, revenue: 0, commission: 0, ads: 0, promo: 0};
+    let va, vb;
+    if      (sortCol === 'sales')      { va = da.sales;       vb = db.sales; }
+    else if (sortCol === 'revenue')    { va = da.revenue;     vb = db.revenue; }
+    else if (sortCol === 'commission') { va = da.commission;  vb = db.commission; }
+    else if (sortCol === 'margin')     { va = margin(da);     vb = margin(db); }
+    else if (sortCol === 'marginPct')  { va = marginPct(da);  vb = marginPct(db); }
+    else                               { va = da.revenue;     vb = db.revenue; }
+    return sortDir === 'desc' ? vb - va : va - vb;
+  });
+}
+
+// ── Render all ─────────────────────────────────────────────────
+function renderAll() {
+  renderDateBar();
+  renderFilterBar();
+  renderTable();
+}
+
+// ── Date bar ───────────────────────────────────────────────────
+function renderDateBar() {
+  const days = getPeriodDays();
+  const fmt  = s => s.split('-').reverse().join('.');
+  const periodLabel = datePreset === 'all'
+    ? `Весь период · ${days} дн.`
+    : datePreset === 'last30'
+    ? `Последние 30 дней · ${days} дн.`
+    : `${fmt(dateFrom)} — ${fmt(dateTo)} · ${days} дн.`;
+
+  document.getElementById('dateBar').innerHTML = `
+    <span style="font-size:11px;color:#888;font-weight:600;letter-spacing:.3px">ПЕРИОД:</span>
+    <button class="dpreset${datePreset === 'all' ? ' on' : ''}" onclick="setDatePreset('all')">Все время</button>
+    <button class="dpreset d-30${datePreset === 'last30' ? ' on' : ''}" onclick="setDatePreset('last30')">Последние 30 дней</button>
+    <div class="d-sep"></div>
+    <div class="date-inputs">
+      <span class="date-lbl">С</span>
+      <input class="date-inp${datePreset === 'custom' ? ' custom-active' : ''}" type="date" id="dateFromInp"
+        value="${dateFrom}" min="${DATE_MIN}" max="${DATE_MAX}"
+        onchange="setCustomDate('from', this.value)">
+      <span class="date-arrow">→</span>
+      <span class="date-lbl">По</span>
+      <input class="date-inp${datePreset === 'custom' ? ' custom-active' : ''}" type="date" id="dateToInp"
+        value="${dateTo}" min="${DATE_MIN}" max="${DATE_MAX}"
+        onchange="setCustomDate('to', this.value)">
+    </div>
+    <div class="date-badge">
+      <span class="d-pill">${periodLabel}</span>
+      <span class="d-pill loading-pill" id="loadPill" style="display:none">⟳ загрузка…</span>
+    </div>`;
+}
+
+// ── Filter bar ─────────────────────────────────────────────────
+function renderFilterBar() {
+  const c = getCounts();
+  const filters = [
+    {id: 'all',      label: `Все (${c.all})`},
+    {id: 'hit',      label: `★ Хиты (${c.hit})`},
+    {id: 'winning',  label: `↑ Выигрывает (${c.winning})`},
+    {id: 'losing',   label: `✕ Проигрышные (${c.losing})`},
+    {id: 'sleeping', label: `◎ Спящие (${c.sleeping})`},
+  ];
+  const catList = getCategories();
+  const catOpts = `<option value="">Все категории</option>` +
+    catList.map(cat => `<option value="${escHtml(cat)}"${curCat === cat ? ' selected' : ''}>${escHtml(cat)}</option>`).join('');
+
+  const total = filteredProducts().length;
+  document.getElementById('filterBar').innerHTML = `
+    ${filters.map(f =>
+      `<button class="fpill${curFilter === f.id ? ' active' : ''}" onclick="setFilter('${f.id}')">${f.label}</button>`
+    ).join('')}
+    <div class="f-sep"></div>
+    <select class="cat-sel" onchange="setCat(this.value)">${catOpts}</select>
+    <button class="btn-csv" onclick="downloadCSV()" title="Скачать текущую выборку в CSV">⬇ CSV (${total})</button>`;
+}
+
+// ── Table ──────────────────────────────────────────────────────
+function renderTable() {
+  const allFiltered = sortedProducts(filteredProducts());
+  const totalPages  = Math.max(1, Math.ceil(allFiltered.length / PER_PAGE));
+  if (curPage > totalPages) curPage = 1;
+  const page = allFiltered.slice((curPage - 1) * PER_PAGE, curPage * PER_PAGE);
+
+  if (allFiltered.length === 0) {
+    document.getElementById('tblWrap').innerHTML = '<div class="empty">Нет товаров по выбранным фильтрам</div>';
     document.getElementById('pagination').innerHTML = '';
     return;
   }
 
-  var html = page.map(function(p){
-    var margin = p.revenue > 0 ? (p.profit/p.revenue*100) : 0;
-    var mColor = margin >= 0 ? '#0F6E56' : '#A32D2D';
-    return '<div class="prod-row">'
-      +'<div><div class="pr-name">'+p.name+'</div><div class="pr-cat">'+p.category+'</div></div>'
-      +'<div class="pr-val">'+fmtN(p.orders)+'</div>'
-      +'<div class="pr-val">'+fmt(p.revenue)+' zł</div>'
-      +'<div class="pr-val neg">-'+fmt(p.commission)+' zł</div>'
-      +'<div class="pr-val neg">-'+fmt(p.ads)+' zł</div>'
-      +'<div class="pr-val '+(p.profit>=0?'pos':'neg')+'">'+fmt(p.profit)+' zł</div>'
-      +'<div class="pr-val" style="color:'+mColor+';font-weight:700">'+margin.toFixed(1)+'%</div>'
-      +'</div>';
+  const maxRev = Math.max(...allFiltered.map(p => (getProductData(p) || {revenue: 0}).revenue));
+
+  const sortArrow = dir => dir === 'desc' ? ' ↓' : ' ↑';
+  const head = `<div class="tbl-head">
+    <span>Продукт</span>
+    <span class="${sortCol === 'sales' ? 'sorted' : ''}" onclick="setSort('sales')">Продажи${sortCol === 'sales' ? sortArrow(sortDir) : ''}</span>
+    <span class="${sortCol === 'revenue' ? 'sorted' : ''}" onclick="setSort('revenue')">Доход${sortCol === 'revenue' ? sortArrow(sortDir) : ''}</span>
+    <span class="${sortCol === 'commission' ? 'sorted' : ''}" onclick="setSort('commission')">Сборы${sortCol === 'commission' ? sortArrow(sortDir) : ''}</span>
+    <span class="${sortCol === 'margin' || sortCol === 'marginPct' ? 'sorted' : ''}" onclick="setSort('marginPct')">Маржа${sortCol === 'margin' || sortCol === 'marginPct' ? sortArrow(sortDir) : ''}</span>
+    <span></span>
+  </div>`;
+
+  const rows = page.map(p => {
+    const key = productKey(p);
+    const d   = getProductData(p);
+    const st  = getStatus(p);
+
+    const oid = p.offers && p.offers[SHOP];
+    const metaBase = `ID: <span class="id-val">…${oid ? oid.slice(-5) : '—'}</span> · EAN: <span class="id-val">${escHtml(p.ean || '—')}</span>`;
+    const catTag = p.category ? ` · <span style="color:#0F6E56;font-weight:600">${escHtml(p.category)}</span>` : '';
+
+    if (!d) {
+      return `<div class="prod-row${selKey === key ? ' sel' : ''}" onclick="openSidebar('${escHtml(key)}')">
+        <div>
+          <div class="pr-badge ${BCLS[st]}">${BADGE[st]}</div>
+          <div class="pr-name">${escHtml(p.name)}</div>
+          <div class="pr-meta">${metaBase}${catTag}</div>
+        </div>
+        <div class="tc" style="color:#c8e6dc">0 шт.</div>
+        <div class="tc" style="color:#c8e6dc">—</div>
+        <div class="tc" style="color:#c8e6dc">—</div>
+        <div class="tc" style="color:#c8e6dc">—</div>
+        <div class="tc-arrow">›</div>
+      </div>`;
+    }
+
+    const m   = margin(d);
+    const mp  = marginPct(d);
+    const barW = maxRev > 0 ? Math.round(d.revenue / maxRev * 100) : 0;
+    const barC = mp >= 35 ? '#0F6E56' : mp >= 15 ? '#BA7517' : mp >= 0 ? '#e5a43a' : '#A32D2D';
+    const avgPrice = d.sales > 0 ? ` · 🏷 <span style="color:#0F6E56;font-weight:700">${fmt2(d.revenue / d.sales)} zł</span>` : '';
+
+    return `<div class="prod-row${selKey === key ? ' sel' : ''}" onclick="openSidebar('${escHtml(key)}')">
+      <div>
+        <div class="pr-badge ${BCLS[st]}">${BADGE[st]}</div>
+        <div class="pr-name">${escHtml(p.name)}</div>
+        <div class="pr-meta">${metaBase}${catTag}${avgPrice}</div>
+      </div>
+      <div class="tc">${d.sales} шт.</div>
+      <div class="tc am">${zl(d.revenue)}
+        <div class="pbar"><div class="pbar-f" style="width:${barW}%;background:${barC}"></div></div>
+      </div>
+      <div class="tc rd">−${zl(d.commission)}<small>${d.revenue > 0 ? (d.commission / d.revenue * 100).toFixed(1) : 0}%</small></div>
+      <div class="tc ${m >= 0 ? 'gr' : 'rd'}">${m >= 0 ? '' : '−'}${zl(m)}<small>${mp.toFixed(1)}%</small></div>
+      <div class="tc-arrow">›</div>
+    </div>`;
   }).join('');
 
-  document.getElementById('prod-list').innerHTML = html;
-
-  // Pagination
-  var total = arr.length;
-  var pages = Math.ceil(total / PAGE_SIZE);
-  document.getElementById('pagination').innerHTML =
-    'Показано '+(curPage*PAGE_SIZE+1)+'–'+Math.min((curPage+1)*PAGE_SIZE, total)+' из '+total+
-    '<button class="pg-btn" style="margin-left:auto" onclick="goPage('+(curPage-1)+')" '+(curPage===0?'disabled':'')+'>← Назад</button>'+
-    '<button class="pg-btn" onclick="goPage('+(curPage+1)+')" '+((curPage+1)>=pages?'disabled':'')+'>Вперёд →</button>';
+  document.getElementById('tblWrap').innerHTML = head + rows;
+  renderPagination(totalPages, allFiltered.length);
 }
 
-function goPage(p){ curPage=p; render(); window.scrollTo(0,0); }
+// ── Pagination ─────────────────────────────────────────────────
+function renderPagination(totalPages, total) {
+  const el = document.getElementById('pagination');
+  if (totalPages <= 1) {
+    el.innerHTML = `<span class="pg-info">${total} товаров</span>`;
+    return;
+  }
+  let html = `<button class="pg" onclick="goPage(${curPage - 1})" ${curPage === 1 ? 'disabled' : ''}>‹</button>`;
+  const start = Math.max(1, curPage - 2), end = Math.min(totalPages, curPage + 2);
+  if (start > 1) html += `<button class="pg" onclick="goPage(1)">1</button>${start > 2 ? '<span class="pg-info">…</span>' : ''}`;
+  for (let i = start; i <= end; i++) html += `<button class="pg${i === curPage ? ' pgon' : ''}" onclick="goPage(${i})">${i}</button>`;
+  if (end < totalPages) html += `${end < totalPages - 1 ? '<span class="pg-info">…</span>' : ''}<button class="pg" onclick="goPage(${totalPages})">${totalPages}</button>`;
+  html += `<button class="pg" onclick="goPage(${curPage + 1})" ${curPage === totalPages ? 'disabled' : ''}>›</button>`;
+  html += `<span class="pg-info">${total} товаров · стр. ${curPage} из ${totalPages}</span>`;
+  el.innerHTML = html;
+}
 
-// Load products.json
-document.getElementById('prod-list').innerHTML =
-  '<div class="loading"><div class="loading-spin"></div><br>Загрузка данных...</div>';
+// ── Sidebar ────────────────────────────────────────────────────
+function openSidebar(key) {
+  const idx = keyToIdx[key];
+  if (idx === undefined) return;
+  const p  = PRODUCTS[idx];
+  const d  = getProductData(p);
+  const st = getStatus(p);
+  selKey   = key;
 
-fetch('products.json?_='+Date.now())
-  .then(function(r){ return r.json(); })
-  .then(function(d){
-    PRODUCTS = Array.isArray(d) ? d : (d.products || []);
+  const m  = d ? margin(d)    : 0;
+  const mp = d ? marginPct(d) : 0;
 
-    // Build category filter
-    var cats = [...new Set(PRODUCTS.map(function(p){ return p.category||'Остальные'; }))].sort();
-    var sel = document.getElementById('catFilter');
-    cats.forEach(function(c){
-      var opt = document.createElement('option');
-      opt.value = opt.textContent = c;
-      sel.appendChild(opt);
-    });
+  const oid = p.offers && p.offers[SHOP];
+  const idsHtml = `Offer ID: <span class="id-val">${escHtml(oid || '—')}</span>`;
 
-    dateTo   = today();
-    dateFrom = addDays(dateTo, -6);
-    document.getElementById('dateFrom').value = dateFrom;
-    document.getElementById('dateTo').value   = dateTo;
-    render();
-  })
-  .catch(function(){
-    document.getElementById('prod-list').innerHTML =
-      '<div class="no-data">⚠ products.json не найден.<br><small>Запусти <b>fetch_offers.yml</b> в GitHub Actions для загрузки данных по офферам.</small></div>';
-    document.getElementById('pagination').innerHTML='';
-  });
+  let metricsHtml = '', distHtml = '';
+
+  if (d) {
+    const feePct   = d.revenue > 0 ? d.commission / d.revenue * 100 : 0;
+    const adsPct   = d.revenue > 0 ? d.ads        / d.revenue * 100 : 0;
+    const promoPct = d.revenue > 0 ? d.promo      / d.revenue * 100 : 0;
+    const mgPct    = Math.max(0, mp);
+    const roas     = (d.ads + d.promo) > 0 ? (d.revenue / (d.ads + d.promo)).toFixed(1) : '—';
+    const avgPrice = d.sales > 0 ? fmt2(d.revenue / d.sales) + ' zł' : '—';
+
+    metricsHtml = `
+    <div class="mc2">
+      <div class="mc am">
+        <div class="mc-l">Доход</div>
+        <div class="mc-v">${zl(d.revenue)}</div>
+        <div class="mc-s">${d.sales} транзакций · ср. ${avgPrice}</div>
+      </div>
+      <div class="mc ${m >= 0 ? 'gr' : 'rd'}">
+        <div class="mc-l">Чистая маржа</div>
+        <div class="mc-v">${m >= 0 ? '' : '−'}${zl(m)}</div>
+        <div class="mc-s">${mp.toFixed(1)}% от выручки</div>
+      </div>
+      <div class="mc rd">
+        <div class="mc-l">Комиссия Allegro</div>
+        <div class="mc-v">−${zl(d.commission)}</div>
+        <div class="mc-s">${feePct.toFixed(1)}% от выручки</div>
+      </div>
+      <div class="mc am">
+        <div class="mc-l">ROAS</div>
+        <div class="mc-v">${roas}</div>
+        <div class="mc-s">${zl(d.ads + d.promo)} реклама+промо</div>
+      </div>
+      <div class="mc" style="border-color:#f0d080;background:#fffdf5">
+        <div class="mc-l" style="color:#BA7517">Реклама CPC</div>
+        <div class="mc-v" style="color:#BA7517">−${zl(d.ads)}</div>
+        <div class="mc-s">${adsPct.toFixed(1)}% от выручки</div>
+      </div>
+      <div class="mc" style="border-color:#d8b4fe;background:#faf5ff">
+        <div class="mc-l" style="color:#7C3AED">Промование</div>
+        <div class="mc-v" style="color:#7C3AED">−${zl(d.promo)}</div>
+        <div class="mc-s">${promoPct.toFixed(1)}% от выручки</div>
+      </div>
+    </div>`;
+
+    // Distribution bar
+    const total = feePct + adsPct + promoPct + mgPct;
+    const w = v => total > 0 ? Math.round(v / total * 100) + '%' : '0%';
+    distHtml = `
+    <div class="dist-sec">
+      <div class="dist-lbl">Распределение выручки</div>
+      <div class="dist-bar">
+        <div class="dist-seg" style="width:${w(feePct)};background:#A32D2D;border-radius:5px 0 0 5px"></div>
+        <div class="dist-seg" style="width:${w(adsPct)};background:#BA7517"></div>
+        <div class="dist-seg" style="width:${w(promoPct)};background:#7C3AED"></div>
+        <div class="dist-seg" style="width:${w(mgPct)};background:#0F6E56;border-radius:0 5px 5px 0"></div>
+      </div>
+      <div class="dist-leg">
+        <div class="dl"><div class="dl-dot" style="background:#A32D2D"></div>Комиссия Allegro<span class="dl-v">${feePct.toFixed(0)}%</span></div>
+        <div class="dl"><div class="dl-dot" style="background:#BA7517"></div>Реклама CPC<span class="dl-v">${adsPct.toFixed(0)}%</span></div>
+        <div class="dl"><div class="dl-dot" style="background:#7C3AED"></div>Промование<span class="dl-v">${promoPct.toFixed(0)}%</span></div>
+        <div class="dl"><div class="dl-dot" style="background:#0F6E56"></div>Маржа<span class="dl-v">${mgPct.toFixed(0)}%</span></div>
+      </div>
+    </div>`;
+  } else {
+    metricsHtml = `<div style="padding:20px;text-align:center;color:#aaa;font-size:13px">Нет данных за выбранный период</div>`;
+  }
+
+  document.getElementById('sidebar').innerHTML = `
+    <div class="sb-head">
+      <button class="sb-close" onclick="closeSidebar()">✕</button>
+      <div class="pr-badge ${BCLS[st]}" style="margin-top:4px">${BADGE[st]}</div>
+      <div class="sb-name">${escHtml(p.name)}</div>
+      <div class="sb-ids">${idsHtml} ·
+        EAN: <span class="id-val">${escHtml(p.ean || '—')}</span>
+        ${p.category ? ` · <span style="color:#0F6E56;font-weight:600">${escHtml(p.category)}</span>` : ''}
+      </div>
+    </div>
+    <div class="sb-body">
+      ${metricsHtml}
+      ${distHtml}
+    </div>`;
+
+  document.getElementById('sidebar').classList.add('open');
+  document.getElementById('overlay').classList.add('open');
+  renderTable(); // update row highlight
+}
+
+function closeSidebar() {
+  selKey = null;
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('overlay').classList.remove('open');
+  renderTable();
+}
+
+// ── Event handlers ─────────────────────────────────────────────
+function setFilter(f) { curFilter = f; curPage = 1; renderAll(); }
+function setCat(c)    { curCat = c;    curPage = 1; renderAll(); }
+function goPage(n)    { curPage = n;   renderAll(); }
+
+function setSort(col) {
+  if (sortCol === col) { sortDir = sortDir === 'desc' ? 'asc' : 'desc'; }
+  else { sortCol = col; sortDir = 'desc'; }
+  curPage = 1;
+  renderAll();
+}
+
+function setDatePreset(p) {
+  datePreset = p;
+  if (p === 'all') {
+    dateFrom = DATE_MIN;
+    dateTo   = DATE_MAX;
+  } else if (p === 'last30') {
+    const to   = new Date(DATE_MAX);
+    const from = new Date(to);
+    from.setDate(from.getDate() - 29);
+    dateFrom = from.toISOString().slice(0, 10);
+    dateTo   = DATE_MAX;
+  }
+  refresh();
+}
+
+function setCustomDate(which, val) {
+  datePreset = 'custom';
+  if (which === 'from') dateFrom = val;
+  else                  dateTo   = val;
+  if (dateFrom > dateTo) { if (which === 'from') dateTo = dateFrom; else dateFrom = dateTo; }
+  refresh();
+}
+
+// ── CSV Export ─────────────────────────────────────────────────
+function downloadCSV() {
+  const products = sortedProducts(filteredProducts());
+
+  const filterLabel = {all: 'Все', hit: 'Хиты', winning: 'Выигрывает', losing: 'Проигрышные', sleeping: 'Спящие'}[curFilter] || curFilter;
+  const periodLabel = datePreset === 'all' ? 'все_время' : datePreset === 'last30' ? 'посл_30дн' : `${dateFrom}_${dateTo}`;
+  const filename = `unit_economy_ProCare_${filterLabel}_${periodLabel}.csv`;
+
+  const headers = ['Название', 'EAN', 'Категория', 'Offer ID', 'Статус',
+    'Продажи (шт)', 'Доход (zł)', 'Комиссия (zł)', 'Реклама (zł)', 'Промо (zł)',
+    'Маржа (zł)', 'Маржа (%)'];
+
+  const statusLabels = {hit: 'Хит', winning: 'Выигрывает', losing: 'Проигрышный', sleeping: 'Спящий'};
+  const csvCell = v => {
+    const s = String(v == null ? '' : v).replace(/"/g, '""');
+    return /[,"\n\r]/.test(s) ? `"${s}"` : s;
+  };
+
+  const rows = [headers.map(csvCell).join(',')];
+  for (const p of products) {
+    const d  = getProductData(p);
+    const st = getStatus(p);
+    const oid = (p.offers && p.offers[SHOP]) || '';
+
+    const row = [p.name || '', p.ean || '', p.category || '', oid, statusLabels[st] || st];
+    if (d) {
+      const m  = Math.round(margin(d)    * 100) / 100;
+      const mp = Math.round(marginPct(d) * 10)  / 10;
+      row.push(d.sales, d.revenue, d.commission, d.ads, d.promo, m, mp);
+    } else {
+      row.push(0, '', '', '', '', '', '');
+    }
+    rows.push(row.map(csvCell).join(','));
+  }
+
+  const blob = new Blob(['\ufeff' + rows.join('\r\n')], {type: 'text/csv;charset=utf-8'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── Bootstrap ──────────────────────────────────────────────────
+async function init() {
+  try {
+    const catalog = await loadProducts();
+
+    DATE_MIN = catalog.date_min || '2026-01-01';
+    DATE_MAX = catalog.date_max || new Date().toISOString().slice(0, 10);
+    dateFrom = DATE_MIN;
+    dateTo   = DATE_MAX;
+
+    document.getElementById('mainContent').innerHTML = `
+      <div class="date-bar"   id="dateBar"></div>
+      <div class="filter-bar" id="filterBar"></div>
+      <div class="tbl-wrap"   id="tblWrap">
+        <div class="loading"><div class="loading-spin"></div><br>Загрузка данных…</div>
+      </div>
+      <div class="pagination" id="pagination"></div>`;
+
+    document.getElementById('hdrSub').textContent =
+      `Юнит-экономика · ProCare · ${PRODUCTS.length} товаров · обновлено ${catalog.updated || '—'}`;
+    document.getElementById('footer').textContent =
+      `PROCARE · Юнит-экономика · ${PRODUCTS.length} товаров`;
+
+    dataReady = true;
+
+    await ensureMonthsLoaded(dateFrom, dateTo);
+    buildAggCache(dateFrom, dateTo);
+    buildStatusCache();
+    renderAll();
+
+  } catch(e) {
+    document.getElementById('mainContent').innerHTML = `
+      <div style="padding:48px;text-align:center;font-size:13px">
+        <div style="font-size:28px;margin-bottom:12px">⚠</div>
+        <strong style="color:#A32D2D">Ошибка загрузки данных</strong><br><br>
+        <span style="color:#888">Убедитесь что <code>products.json</code> существует.<br>
+        Запустите <code>fetch_offers.yml</code> для загрузки каталога.</span><br><br>
+        <code style="font-size:10px;color:#aaa">${escHtml(e.message)}</code>
+      </div>`;
+    console.error('init error:', e);
+  }
+}
+
+init();
 </script>
 </body>
 </html>

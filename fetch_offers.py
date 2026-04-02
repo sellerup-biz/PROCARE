@@ -1,32 +1,35 @@
 """
-PROCARE — сбор данных по офферам → products.json
-Используется страницами categories.html и unit_economy.html.
+PROCARE — сбор данных по офферам
 
-Что собирает:
-  - Заказы и выручку по каждому офферу за последние N дней
-  - Категорию берёт из каталога офферов продавца (GET /sale/offers)
-  - Комиссию оценивает пропорционально выручке (total_commission / total_revenue × revenue_offer)
-  - Расходы на рекламу — через billing-entries типа NSP/DPG/etc. (общие, proportional)
+Outputs:
+  products.json          — каталог офферов (id, name, category)
+  unit_data/YYYY-MM.json — ежемесячные файлы с дневными данными по офферам
 
-N задаётся через OFFERS_DAYS (дефолт 90).
+Запускать вручную или через fetch_offers.yml.
+Переменные окружения:
+  CLIENT_ID_PROCARE, CLIENT_SECRET_PROCARE, REFRESH_TOKEN_PROCARE
+  GH_TOKEN      — для ротации токена
+  OFFERS_DAYS   — глубина истории (дефолт 90)
 """
+
 import requests, json, os, base64
 from datetime import datetime, timedelta, timezone
 from collections import defaultdict
 from nacl import encoding, public
 
+# ── Константы ──────────────────────────────────────────────────────────────────
+
 REDIRECT_URI = "https://sellerup-biz.github.io/PROCARE/callback.html"
-GH_TOKEN     = os.environ.get("GH_TOKEN", "")
 GH_REPO      = "sellerup-biz/PROCARE"
+SHOP_NAME    = "ProCare"
+GH_TOKEN     = os.environ.get("GH_TOKEN", "")
 OFFERS_DAYS  = int(os.environ.get("OFFERS_DAYS", "90"))
 
-SHOPS = {
-    "ProCare": {
-        "client_id":     os.environ.get("CLIENT_ID_PROCARE", ""),
-        "client_secret": os.environ.get("CLIENT_SECRET_PROCARE", ""),
-        "refresh_token": os.environ.get("REFRESH_TOKEN_PROCARE", ""),
-        "secret_name":   "REFRESH_TOKEN_PROCARE",
-    }
+SHOP = {
+    "client_id":     os.environ.get("CLIENT_ID_PROCARE", ""),
+    "client_secret": os.environ.get("CLIENT_SECRET_PROCARE", ""),
+    "refresh_token": os.environ.get("REFRESH_TOKEN_PROCARE", ""),
+    "secret_name":   "REFRESH_TOKEN_PROCARE",
 }
 
 BILLING_MAP = {
@@ -45,132 +48,156 @@ BILLING_MAP = {
     "PAD":"IGNORE","SUM":"IGNORE",
 }
 
+# ── Вспомогательные функции ────────────────────────────────────────────────────
 
 def get_tz(month):
     return 2 if 3 <= month <= 10 else 1
 
-def hdrs(t):
-    return {"Authorization": f"Bearer {t}", "Accept": "application/vnd.allegro.public.v1+json"}
+
+def hdrs(token):
+    return {
+        "Authorization": f"Bearer {token}",
+        "Accept":        "application/vnd.allegro.public.v1+json",
+    }
+
 
 def get_gh_pubkey():
     r = requests.get(
         f"https://api.github.com/repos/{GH_REPO}/actions/secrets/public-key",
-        headers={"Authorization": f"token {GH_TOKEN}", "Accept": "application/vnd.github+json"})
+        headers={"Authorization": f"token {GH_TOKEN}", "Accept": "application/vnd.github+json"},
+    )
     return r.json()
 
+
 def save_token(secret_name, new_rt, pubkey):
-    if not new_rt or not GH_TOKEN: return
+    if not new_rt or not GH_TOKEN:
+        return
     try:
         pk  = public.PublicKey(pubkey["key"].encode(), encoding.Base64Encoder())
         enc = base64.b64encode(public.SealedBox(pk).encrypt(new_rt.encode())).decode()
         resp = requests.put(
             f"https://api.github.com/repos/{GH_REPO}/actions/secrets/{secret_name}",
             headers={"Authorization": f"token {GH_TOKEN}", "Accept": "application/vnd.github+json"},
-            json={"encrypted_value": enc, "key_id": pubkey["key_id"]})
-        print(f"  ✅ Токен {secret_name} сохранён" if resp.status_code in (201, 204) else f"  ⚠ {resp.status_code}")
+            json={"encrypted_value": enc, "key_id": pubkey["key_id"]},
+        )
+        if resp.status_code in (201, 204):
+            print(f"  Token {secret_name} rotated OK")
+        else:
+            print(f"  WARNING: save_token {resp.status_code}: {resp.text[:100]}")
     except Exception as e:
-        print(f"  ⚠ save_token: {e}")
+        print(f"  WARNING: save_token exception: {e}")
+
 
 def get_token(shop):
     r = requests.post(
         "https://allegro.pl/auth/oauth/token",
         auth=(shop["client_id"], shop["client_secret"]),
-        data={"grant_type": "refresh_token", "refresh_token": shop["refresh_token"],
-              "redirect_uri": REDIRECT_URI})
+        data={
+            "grant_type":    "refresh_token",
+            "refresh_token": shop["refresh_token"],
+            "redirect_uri":  REDIRECT_URI,
+        },
+    )
     d = r.json()
     if "access_token" not in d:
-        print(f"  ОШИБКА токена: {d}"); return None, None
+        print(f"  ERROR token: {d}")
+        return None, None
     return d["access_token"], d.get("refresh_token", "")
 
 
+# ── Allegro API — каталог офферов ─────────────────────────────────────────────
+
 def get_offer_catalog(token):
-    """Загружает все офферы продавца → {offer_id: {name, category}}"""
+    """GET /sale/offers (all pages) → {offer_id: {name, category}}"""
     catalog = {}
     offset  = 0
+    print("  Fetching offer catalog...")
     while True:
         resp = requests.get(
             "https://api.allegro.pl/sale/offers",
             headers=hdrs(token),
-            params={"limit": 1000, "offset": offset,
-                    "publication.status": "ACTIVE,INACTIVE,ENDED"})
+            params={"limit": 1000, "offset": offset},
+        )
         if resp.status_code != 200:
-            print(f"  ⚠ sale/offers {resp.status_code}"); break
+            print(f"  WARNING: sale/offers {resp.status_code}: {resp.text[:200]}")
+            break
         data   = resp.json()
         offers = data.get("offers", [])
         for o in offers:
-            oid = o["id"]
-            cat_path = o.get("category", {})
-            cat_name = cat_path.get("name", "Остальные") if isinstance(cat_path, dict) else "Остальные"
+            oid      = o["id"]
+            cat_info = o.get("category", {})
+            cat_name = cat_info.get("name", "Other") if isinstance(cat_info, dict) else "Other"
             catalog[oid] = {
-                "name":     o.get("name", oid)[:80],
+                "name":     o.get("name", oid)[:120],
                 "category": cat_name,
             }
-        print(f"    Офферов загружено: {len(catalog)} (offset {offset})")
-        if len(offers) < 1000: break
+        print(f"    offset={offset}  loaded={len(catalog)}")
+        if len(offers) < 1000:
+            break
         offset += 1000
+    print(f"  Catalog: {len(catalog)} offers total")
     return catalog
 
 
-def get_orders_for_period(token, date_from, date_to):
-    """
-    Собирает заказы за период → {date: {offer_id: {orders, revenue}}}
-    Использует GET /order/checkout-forms с фильтром по дате создания.
-    """
-    dt_from = datetime.strptime(date_from, "%Y-%m-%d")
-    dt_to   = datetime.strptime(date_to,   "%Y-%m-%d")
-    tz      = get_tz(dt_from.month)
+# ── Allegro API — заказы по дням ──────────────────────────────────────────────
 
-    d_from_iso = f"{date_from}T00:00:00+0{tz}:00"
-    tz_to      = get_tz(dt_to.month)
-    d_to_iso   = f"{date_to}T23:59:59+0{tz_to}:00"
+def get_orders_day(token, date_str):
+    """
+    GET /order/checkout-forms для одного дня.
+    Возвращает {offer_id: {"qty": int, "revenue": float}}
+    """
+    dt  = datetime.strptime(date_str, "%Y-%m-%d")
+    tz  = get_tz(dt.month)
+    d_from = f"{date_str}T00:00:00+0{tz}:00"
+    d_to   = f"{date_str}T23:59:59+0{tz}:00"
 
-    # {date_str: {offer_id: {orders, revenue}}}
-    by_date = defaultdict(lambda: defaultdict(lambda: {"orders": 0, "revenue": 0.0}))
-    offset  = 0
-    total   = 0
+    result = defaultdict(lambda: {"qty": 0, "revenue": 0.0})
+    offset = 0
 
     while True:
-        resp = requests.get(
-            "https://api.allegro.pl/order/checkout-forms",
-            headers=hdrs(token),
-            params={
-                "status":          "BOUGHT",
-                "boughtAt.gte":    d_from_iso,
-                "boughtAt.lte":    d_to_iso,
-                "limit":           100,
-                "offset":          offset,
-            })
+        try:
+            resp = requests.get(
+                "https://api.allegro.pl/order/checkout-forms",
+                headers=hdrs(token),
+                params={
+                    "status":       "BOUGHT",
+                    "boughtAt.gte": d_from,
+                    "boughtAt.lte": d_to,
+                    "limit":        100,
+                    "offset":       offset,
+                },
+                timeout=30,
+            )
+        except Exception as e:
+            print(f"    WARNING: request error on {date_str}: {e}")
+            break
+
         if resp.status_code != 200:
-            print(f"  ⚠ checkout-forms {resp.status_code}: {resp.text[:200]}"); break
+            print(f"    WARNING: checkout-forms {resp.status_code} on {date_str}: {resp.text[:150]}")
+            break
 
-        data  = resp.json()
-        forms = data.get("checkoutForms", [])
-
+        forms = resp.json().get("checkoutForms", [])
         for form in forms:
-            # Дата заказа: boughtAt или createdAt
-            bought_at = form.get("boughtAt") or form.get("payment", {}).get("paidAt") or form.get("createdAt", "")
-            date_str  = bought_at[:10] if bought_at else ""
-            if not date_str: continue
-
             for item in form.get("lineItems", []):
                 oid     = item.get("offer", {}).get("id", "unknown")
                 qty     = int(item.get("quantity", 1))
                 price   = float(item.get("price", {}).get("amount", 0))
-                by_date[date_str][oid]["orders"]  += qty
-                by_date[date_str][oid]["revenue"] += round(qty * price, 2)
-                total += qty
+                result[oid]["qty"]     += qty
+                result[oid]["revenue"] += round(qty * price, 2)
 
-        print(f"    offset={offset}  формы={len(forms)}  позиций={total}")
-        if len(forms) < 100: break
+        if len(forms) < 100:
+            break
         offset += 100
 
-    return by_date
+    return dict(result)
 
+
+# ── Allegro API — биллинг ─────────────────────────────────────────────────────
 
 def get_billing_totals(token, date_from, date_to):
     """
-    Возвращает суммарную комиссию и расходы на рекламу за период → (commission, ads)
-    Нужно для пропорциональной разбивки по офферам.
+    GET /billing/billing-entries за весь период.
+    Возвращает (total_commission, total_ads) в PLN.
     """
     dt_from = datetime.strptime(date_from, "%Y-%m-%d")
     dt_to   = datetime.strptime(date_to,   "%Y-%m-%d")
@@ -184,115 +211,248 @@ def get_billing_totals(token, date_from, date_to):
     ads        = 0.0
     offset     = 0
 
+    print(f"  Fetching billing {date_from} -> {date_to}...")
     while True:
-        resp = requests.get(
-            "https://api.allegro.pl/billing/billing-entries",
-            headers=hdrs(token),
-            params={"occurredAt.gte": d_from_iso, "occurredAt.lte": d_to_iso,
-                    "limit": 100, "offset": offset})
-        if resp.status_code != 200: break
+        try:
+            resp = requests.get(
+                "https://api.allegro.pl/billing/billing-entries",
+                headers=hdrs(token),
+                params={
+                    "occurredAt.gte": d_from_iso,
+                    "occurredAt.lte": d_to_iso,
+                    "limit":          100,
+                    "offset":         offset,
+                },
+                timeout=30,
+            )
+        except Exception as e:
+            print(f"    WARNING: billing request error: {e}")
+            break
+
+        if resp.status_code != 200:
+            print(f"    WARNING: billing {resp.status_code}: {resp.text[:150]}")
+            break
+
         entries = resp.json().get("billingEntries", [])
         for e in entries:
             try:
+                type_id = e["type"]["id"]
+                cat     = BILLING_MAP.get(type_id)
+                if cat is None:
+                    print(f"    WARNING UNKNOWN billing type: {type_id}")
+                    continue
+                if cat == "IGNORE":
+                    continue
                 amt = float(e["value"]["amount"])
-                cat = BILLING_MAP.get(e["type"]["id"], "other")
-                if cat == "IGNORE" or cat == "other": continue
                 if amt < 0:
-                    if cat == "commission":           commission += abs(amt)
-                    elif cat == "ads":                ads        += abs(amt)
+                    if cat == "commission":
+                        commission += abs(amt)
+                    elif cat == "ads":
+                        ads        += abs(amt)
                 elif amt > 0:
-                    if cat == "zwrot_commission":     commission  = max(0.0, commission - amt)
-            except: pass
-        if len(entries) < 100: break
+                    if cat == "zwrot_commission":
+                        commission = max(0.0, commission - amt)
+            except Exception as ex:
+                print(f"    WARNING: billing entry parse error: {ex}")
+
+        if len(entries) < 100:
+            break
         offset += 100
 
-    return round(commission, 2), round(ads, 2)
+    commission = round(commission, 2)
+    ads        = round(ads, 2)
+    print(f"  Billing totals: commission={commission:.2f} PLN  ads={ads:.2f} PLN")
+    return commission, ads
+
+
+# ── unit_data I/O ─────────────────────────────────────────────────────────────
+
+UNIT_DATA_DIR = "unit_data"
+
+
+def load_month_file(ym):
+    """Загружает unit_data/YYYY-MM.json или возвращает пустую структуру."""
+    path = os.path.join(UNIT_DATA_DIR, f"{ym}.json")
+    if os.path.exists(path):
+        try:
+            with open(path, encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"  WARNING: could not load {path}: {e}")
+    return {"month": ym, "days": {}}
+
+
+def save_month_file(ym, data):
+    """Сохраняет unit_data/YYYY-MM.json."""
+    os.makedirs(UNIT_DATA_DIR, exist_ok=True)
+    path = os.path.join(UNIT_DATA_DIR, f"{ym}.json")
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
 
 
 # ── MAIN ──────────────────────────────────────────────────────────────────────
 
-today     = datetime.now(timezone.utc).date()
-date_to   = today.strftime("%Y-%m-%d")
-date_from = (today - timedelta(days=OFFERS_DAYS - 1)).strftime("%Y-%m-%d")
+def main():
+    today     = datetime.now(timezone.utc).date()
+    date_to   = today.strftime("%Y-%m-%d")
+    date_from = (today - timedelta(days=OFFERS_DAYS - 1)).strftime("%Y-%m-%d")
 
-print(f"{'='*60}")
-print(f"  PROCARE — сбор офферов / products.json")
-print(f"  Период: {date_from} → {date_to}  ({OFFERS_DAYS} дней)")
-print(f"{'='*60}")
+    # Build list of dates in range
+    start_dt = datetime.strptime(date_from, "%Y-%m-%d").date()
+    end_dt   = datetime.strptime(date_to,   "%Y-%m-%d").date()
+    all_dates = []
+    cur = start_dt
+    while cur <= end_dt:
+        all_dates.append(cur.strftime("%Y-%m-%d"))
+        cur += timedelta(days=1)
 
-pubkey = get_gh_pubkey()
+    print("=" * 60)
+    print(f"  PROCARE — fetch_offers.py")
+    print(f"  Period: {date_from} -> {date_to}  ({OFFERS_DAYS} days, {len(all_dates)} dates)")
+    print("=" * 60)
 
-all_records = []
-
-for shop_name, shop in SHOPS.items():
-    print(f"\n── МАГАЗИН: {shop_name} ─────────────────────────────────────")
-    token, new_rt = get_token(shop)
+    # ── Step 1: OAuth token ──────────────────────────────────────────────────
+    print(f"\n[1/5] Getting OAuth token...")
+    pubkey = get_gh_pubkey()
+    token, new_rt = get_token(SHOP)
     if not token:
-        print("  ❌ Токен не получен"); continue
-    save_token(shop["secret_name"], new_rt, pubkey)
+        print("ERROR: Could not obtain access token. Exiting.")
+        return
+    save_token(SHOP["secret_name"], new_rt, pubkey)
+    print("  Token OK")
 
-    # 1. Каталог офферов (имя + категория)
-    print(f"\n  1. Загрузка каталога офферов...")
+    # ── Step 2: Offer catalog ────────────────────────────────────────────────
+    print(f"\n[2/5] Loading offer catalog...")
     catalog = get_offer_catalog(token)
-    print(f"     Офферов в каталоге: {len(catalog)}")
 
-    # 2. Заказы за период
-    print(f"\n  2. Загрузка заказов {date_from} → {date_to}...")
-    by_date = get_orders_for_period(token, date_from, date_to)
-    print(f"     Дней с продажами: {len(by_date)}")
-
-    # 3. Биллинг — суммарные комиссия и реклама
-    print(f"\n  3. Загрузка биллинга (комиссия + реклама)...")
+    # ── Step 3: Billing totals ───────────────────────────────────────────────
+    print(f"\n[3/5] Loading billing totals...")
     total_commission, total_ads = get_billing_totals(token, date_from, date_to)
-    print(f"     Комиссия: {total_commission:.2f} PLN  Реклама: {total_ads:.2f} PLN")
 
-    # 4. Считаем суммарную выручку за период (для пропорций)
+    # ── Step 4: Orders day by day ────────────────────────────────────────────
+    print(f"\n[4/5] Loading orders day by day...")
+    # {date_str: {offer_id: {"qty": int, "revenue": float}}}
+    day_orders = {}
+    for date_str in all_dates:
+        offers_day = get_orders_day(token, date_str)
+        if offers_day:
+            day_orders[date_str] = offers_day
+            day_rev = sum(v["revenue"] for v in offers_day.values())
+            print(f"  {date_str}: {len(offers_day)} offers, revenue={day_rev:.2f} PLN")
+        else:
+            print(f"  {date_str}: no orders")
+
+    # ── Step 5: Distribute commission/ads proportionally ─────────────────────
+    print(f"\n[5/5] Building unit_data structure and saving files...")
+
     total_revenue = sum(
-        d[oid]["revenue"]
-        for d in by_date.values()
-        for oid in d
+        v["revenue"]
+        for day_data in day_orders.values()
+        for v in day_data.values()
     )
-    print(f"     Выручка (заказы): {total_revenue:.2f} PLN")
+    print(f"  Total revenue in period: {total_revenue:.2f} PLN")
 
-    # 5. Строим записи products.json
-    for date_str, offers in sorted(by_date.items()):
-        day_revenue = sum(v["revenue"] for v in offers.values())
-        for oid, vals in offers.items():
+    # Group days by month
+    months_affected = set()
+    for date_str in day_orders:
+        ym = date_str[:7]  # "YYYY-MM"
+        months_affected.add(ym)
+
+    # Load existing month files
+    month_data = {}
+    for ym in months_affected:
+        month_data[ym] = load_month_file(ym)
+
+    # Merge new data into month files
+    for date_str, offers_day in day_orders.items():
+        ym      = date_str[:7]
+        mfile   = month_data[ym]
+        day_key = date_str
+
+        if "days" not in mfile:
+            mfile["days"] = {}
+
+        # Build ProCare entry for this day
+        procare_day = {}
+        for oid, vals in offers_day.items():
             rev = round(vals["revenue"], 2)
-            ord_cnt = vals["orders"]
+            qty = vals["qty"]
 
-            # Комиссия и реклама: пропорционально доле оффера в выручке
-            share = rev / total_revenue if total_revenue > 0 else 0
+            # Proportional distribution of commission and ads
+            share          = rev / total_revenue if total_revenue > 0 else 0.0
             commission_est = round(total_commission * share, 2)
             ads_est        = round(total_ads        * share, 2)
 
-            cat_info = catalog.get(oid, {"name": oid, "category": "Остальные"})
+            procare_day[oid] = [qty, rev, commission_est, ads_est, 0]
 
-            all_records.append({
-                "date":       date_str,
-                "ean":        oid,
-                "name":       cat_info["name"],
-                "category":   cat_info["category"],
-                "revenue":    rev,
-                "orders":     ord_cnt,
-                "commission": commission_est,
-                "ads":        ads_est,
-            })
+        # Overwrite this day cleanly (idempotent)
+        mfile["days"][day_key] = {SHOP_NAME: procare_day}
 
-# Сортируем по дате
-all_records.sort(key=lambda r: (r["date"], r["name"]))
+    # Save updated month files
+    for ym, mfile in month_data.items():
+        save_month_file(ym, mfile)
+        days_in_file = len(mfile.get("days", {}))
+        print(f"  Saved unit_data/{ym}.json ({days_in_file} days)")
 
-# Сохраняем
-with open("products.json", "w", encoding="utf-8") as f:
-    json.dump(all_records, f, ensure_ascii=False, separators=(",", ":"))
+    # ── Build products.json ──────────────────────────────────────────────────
+    # Include ALL offers from catalog (not just those with orders in this window)
+    products = []
+    seen_ids = set()
 
-print(f"\n{'='*60}")
-print(f"✅ products.json готов!")
-print(f"   Записей: {len(all_records)}")
-unique_offers = len(set(r["ean"] for r in all_records))
-unique_cats   = len(set(r["category"] for r in all_records))
-print(f"   Уникальных офферов: {unique_offers}")
-print(f"   Категорий: {unique_cats}")
-if all_records:
-    print(f"   Период: {all_records[0]['date']} → {all_records[-1]['date']}")
-print(f"{'='*60}")
+    # First: offers that appeared in orders (preserve order for uniqueness)
+    all_offer_ids_ordered = []
+    for date_str in sorted(day_orders.keys()):
+        for oid in day_orders[date_str]:
+            if oid not in seen_ids:
+                all_offer_ids_ordered.append(oid)
+                seen_ids.add(oid)
+
+    # Then: remaining catalog offers not seen in orders
+    for oid in catalog:
+        if oid not in seen_ids:
+            all_offer_ids_ordered.append(oid)
+            seen_ids.add(oid)
+
+    for oid in all_offer_ids_ordered:
+        info = catalog.get(oid, {"name": oid, "category": "Other"})
+        products.append({
+            "ean":      oid,
+            "name":     info["name"],
+            "category": info["category"],
+            "offers":   {SHOP_NAME: oid},
+        })
+
+    products_json = {
+        "products": products,
+        "updated":  today.strftime("%Y-%m-%d"),
+        "date_min": date_from,
+        "date_max": date_to,
+    }
+
+    with open("products.json", "w", encoding="utf-8") as f:
+        json.dump(products_json, f, ensure_ascii=False, separators=(",", ":"))
+    print(f"\n  Saved products.json ({len(products)} products)")
+
+    # ── Final summary ────────────────────────────────────────────────────────
+    days_with_data = sorted(day_orders.keys())
+    total_days     = len(days_with_data)
+
+    print(f"\n{'=' * 60}")
+    print(f"  DONE")
+    print(f"  Products in catalog : {len(products)}")
+    print(f"  Days with data      : {total_days}")
+    print(f"  Date range          : {date_from} -> {date_to}")
+
+    if days_with_data:
+        print(f"\n  Last 5 days:")
+        for d in days_with_data[-5:]:
+            d_data  = day_orders[d]
+            day_rev = sum(v["revenue"] for v in d_data.values())
+            day_qty = sum(v["qty"]     for v in d_data.values())
+            print(f"    {d}: {len(d_data)} offers, qty={day_qty}, revenue={day_rev:.2f} PLN")
+
+    print(f"{'=' * 60}")
+
+
+if __name__ == "__main__":
+    main()
