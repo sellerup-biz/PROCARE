@@ -1,0 +1,43 @@
+name: Fetch Offers Data (products.json)
+
+on:
+  workflow_dispatch:
+    inputs:
+      days:
+        description: 'Количество дней для сбора офферных данных'
+        required: true
+        default: '90'
+  schedule:
+    - cron: '0 4 * * *'   # каждую ночь в 04:00 UTC (после fetch.yml в 03:00)
+
+permissions:
+  contents: write
+
+jobs:
+  fetch-offers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_TOKEN }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install requests PyNaCl
+      - name: Collect offers data
+        run: python fetch_offers.py
+        env:
+          OFFERS_DAYS:            ${{ github.event.inputs.days || '90' }}
+          CLIENT_ID_PROCARE:      ${{ secrets.CLIENT_ID_PROCARE }}
+          CLIENT_SECRET_PROCARE:  ${{ secrets.CLIENT_SECRET_PROCARE }}
+          REFRESH_TOKEN_PROCARE:  ${{ secrets.REFRESH_TOKEN_PROCARE }}
+          GH_TOKEN:               ${{ secrets.GH_TOKEN }}
+      - name: Commit products.json
+        run: |
+          git config user.name "github-actions"
+          git config user.email "bot@procare"
+          git add products.json
+          git diff --staged --quiet || git commit -m "Offers data $(date +'%Y-%m-%d')"
+          git pull --rebase origin main
+          git push
