@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PROCARE · Юнит-экономика</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#F0F7F4;color:#1a1a1a;min-height:100vh;padding:1.5rem}
+
+.hdr{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid #c8e6dc;border-radius:14px;padding:12px 18px;margin-bottom:1.25rem;flex-wrap:wrap}
+.logo{width:38px;height:38px;background:#0F6E56;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0;text-align:center;line-height:1.2}
+.hdr h1{font-size:20px;font-weight:700;letter-spacing:2px}
+.hdr p{font-size:11px;color:#888;margin-top:2px}
+.hdr-nav{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.btn-nav{font-size:12px;padding:7px 16px;border-radius:8px;background:#edfaf5;color:#0F6E56;border:1px solid #c8e6dc;cursor:pointer;text-decoration:none;display:inline-block;font-weight:500;white-space:nowrap}
+.btn-nav:hover{background:#d4f2e7;border-color:#0F6E56}
+
+.loading{padding:64px;text-align:center;color:#aaa;font-size:13px}
+.loading-spin{display:inline-block;width:28px;height:28px;border:3px solid #c8e6dc;border-top-color:#0F6E56;border-radius:50%;animation:spin .8s linear infinite;margin-bottom:12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* FILTER BAR */
+.filter-bar{background:#fff;border:1px solid #c8e6dc;border-radius:12px;padding:10px 14px;margin-bottom:1rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.fpill{font-size:12px;padding:5px 14px;border-radius:20px;border:1px solid #c8e6dc;background:#f5fdf9;color:#555;cursor:pointer;font-weight:500;transition:all .15s;white-space:nowrap}
+.fpill:hover:not(.on){border-color:#0F6E56;color:#0F6E56;background:#edfaf5}
+.fpill.on{background:#0F6E56;color:#fff;border-color:#0F6E56;font-weight:700}
+.f-sep{width:1px;height:22px;background:#c8e6dc;flex-shrink:0}
+.cat-sel{font-size:12px;padding:5px 10px;border:1px solid #c8e6dc;border-radius:8px;background:#f5fdf9;color:#555;cursor:pointer;outline:none;font-family:inherit}
+.srch{font-size:12px;padding:5px 10px;border:1px solid #c8e6dc;border-radius:8px;background:#f5fdf9;color:#1a1a1a;outline:none;font-family:inherit;min-width:180px}
+.srch:focus{border-color:#0F6E56}
+.sort-wrap{margin-left:auto;display:flex;align-items:center;gap:6px}
+.sort-lbl{font-size:11px;color:#aaa}
+.sort-sel{font-size:12px;padding:5px 10px;border:1px solid #c8e6dc;border-radius:8px;background:#f5fdf9;color:#555;cursor:pointer;outline:none;font-family:inherit}
+
+/* DATE BAR */
+.date-bar{background:#fff;border:1px solid #c8e6dc;border-radius:12px;padding:10px 14px;margin-bottom:1rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.dpreset{font-size:12px;padding:5px 14px;border-radius:20px;border:1px solid #c8e6dc;background:#f5fdf9;color:#555;cursor:pointer;font-weight:500;transition:all .15s;white-space:nowrap}
+.dpreset:hover:not(.on){border-color:#0F6E56;color:#0F6E56;background:#edfaf5}
+.dpreset.on{background:#0F6E56;color:#fff;border-color:#0F6E56;font-weight:700}
+.d-sep{width:1px;height:22px;background:#c8e6dc;flex-shrink:0}
+.date-inputs{display:flex;align-items:center;gap:7px}
+.date-lbl{font-size:11px;color:#aaa;white-space:nowrap}
+.date-inp{font-size:12px;padding:5px 9px;border:1px solid #c8e6dc;border-radius:8px;background:#f5fdf9;color:#1a1a1a;cursor:pointer;outline:none;font-family:inherit}
+.date-inp:focus{border-color:#0F6E56}
+.date-arrow{font-size:12px;color:#bbb}
+.d-pill{margin-left:auto;font-size:10px;padding:3px 9px;border-radius:4px;background:#e8f4ef;color:#085041;font-weight:600}
+
+/* PRODUCT TABLE */
+.tbl-wrap{background:#fff;border:1px solid #c8e6dc;border-radius:14px;overflow:hidden;margin-bottom:1rem}
+.tbl-hdr-row{display:grid;grid-template-columns:2fr 90px 120px 100px 100px 100px 90px;padding:9px 16px;border-bottom:2px solid #e8f4ef;background:#f5fdf9}
+.tbl-hdr-row span{font-size:10px;font-weight:700;color:#aaa;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;user-select:none;white-space:nowrap}
+.tbl-hdr-row span:hover{color:#0F6E56}
+.tbl-hdr-row span:not(:first-child){text-align:right}
+
+.prod-row{display:grid;grid-template-columns:2fr 90px 120px 100px 100px 100px 90px;padding:10px 16px;border-bottom:1px solid #f0faf6;cursor:pointer;transition:background .1s;align-items:center}
+.prod-row:last-child{border-bottom:none}
+.prod-row:hover{background:#f5fdf9}
+.pr-name{font-size:12px;font-weight:600;color:#1a1a1a;line-height:1.3}
+.pr-cat{font-size:10px;color:#aaa;margin-top:2px}
+.pr-val{font-size:12px;text-align:right}
+.pr-val.pos{color:#0F6E56;font-weight:600}
+.pr-val.neg{color:#A32D2D;font-weight:600}
+.margin-bar{height:4px;border-radius:2px;margin-top:3px}
+
+.pagination{display:flex;align-items:center;gap:8px;padding:10px 16px;border-top:1px solid #e8f4ef;font-size:12px;color:#777;background:#f5fdf9}
+.pg-btn{padding:4px 12px;border:1px solid #c8e6dc;border-radius:6px;background:#fff;cursor:pointer;font-size:12px}
+.pg-btn:hover{border-color:#0F6E56;color:#0F6E56}
+.pg-btn:disabled{opacity:.4;cursor:default}
+
+.no-data{padding:48px;text-align:center;color:#aaa;font-size:13px}
+.footer{text-align:center;font-size:11px;color:#ccc;margin-top:.5rem;letter-spacing:1px}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="logo">PRO<br>CARE</div>
+  <div>
+    <h1>PROCARE · Юнит-экономика</h1>
+    <p>Экономика по офферам · ProCare · Allegro PL</p>
+  </div>
+  <div class="hdr-nav">
+    <a href="index.html" class="btn-nav">← Главный</a>
+    <a href="analytics.html" class="btn-nav">Аналитика</a>
+    <a href="categories.html" class="btn-nav">Категории</a>
+  </div>
+</div>
+
+<!-- DATE BAR -->
+<div class="date-bar">
+  <span class="dpreset on" onclick="setPreset(7,this)">7 дней</span>
+  <span class="dpreset" onclick="setPreset(30,this)">30 дней</span>
+  <span class="dpreset" onclick="setPreset(90,this)">3 месяца</span>
+  <div class="d-sep"></div>
+  <div class="date-inputs">
+    <span class="date-lbl">с</span>
+    <input type="date" id="dateFrom" class="date-inp" onchange="applyCustom()">
+    <span class="date-arrow">→</span>
+    <span class="date-lbl">по</span>
+    <input type="date" id="dateTo" class="date-inp" onchange="applyCustom()">
+  </div>
+  <span class="d-pill" id="period-pill">7 дней</span>
+</div>
+
+<!-- FILTER BAR -->
+<div class="filter-bar">
+  <span class="fpill on" onclick="setFilter('all',this)">Все офферы</span>
+  <span class="fpill" onclick="setFilter('active',this)">С продажами</span>
+  <span class="fpill" onclick="setFilter('notsold',this)">Без продаж</span>
+  <div class="f-sep"></div>
+  <select class="cat-sel" id="catFilter" onchange="render()">
+    <option value="">Все категории</option>
+  </select>
+  <input type="text" class="srch" id="srch" placeholder="Поиск по названию..." oninput="render()">
+  <div class="sort-wrap">
+    <span class="sort-lbl">Сорт:</span>
+    <select class="sort-sel" id="sortSel" onchange="render()">
+      <option value="revenue">Выручка ↓</option>
+      <option value="orders">Заказы ↓</option>
+      <option value="margin">Маржа ↓</option>
+      <option value="name">Название ↑</option>
+    </select>
+  </div>
+</div>
+
+<!-- TABLE -->
+<div class="tbl-wrap">
+  <div class="tbl-hdr-row">
+    <span>Оффер / Категория</span>
+    <span style="text-align:right">Заказы</span>
+    <span style="text-align:right">Выручка, zł</span>
+    <span style="text-align:right">Комиссия</span>
+    <span style="text-align:right">Реклама</span>
+    <span style="text-align:right">Прибыль</span>
+    <span style="text-align:right">Маржа</span>
+  </div>
+  <div id="prod-list"></div>
+  <div class="pagination" id="pagination"></div>
+</div>
+
+<div class="footer">PROCARE · ЮНИТ-ЭКОНОМИКА · 2026</div>
+
+<script>
+var PRODUCTS = [];
+var curFilter = 'all';
+var curPage   = 0;
+var PAGE_SIZE = 50;
+var dateFrom = '', dateTo = '';
+
+function fmt(n){ return n.toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmtN(n){ return Math.round(n).toLocaleString('ru-RU'); }
+function today(){ return new Date().toISOString().slice(0,10); }
+function addDays(d,n){ var dt=new Date(d); dt.setDate(dt.getDate()+n); return dt.toISOString().slice(0,10); }
+
+function setPreset(days, el){
+  document.querySelectorAll('.dpreset').forEach(function(e){ e.classList.remove('on'); });
+  el.classList.add('on');
+  dateTo   = today();
+  dateFrom = addDays(dateTo, -days+1);
+  document.getElementById('dateFrom').value = dateFrom;
+  document.getElementById('dateTo').value   = dateTo;
+  document.getElementById('period-pill').textContent = days+' дней';
+  curPage = 0; render();
+}
+
+function applyCustom(){
+  document.querySelectorAll('.dpreset').forEach(function(e){ e.classList.remove('on'); });
+  dateFrom = document.getElementById('dateFrom').value;
+  dateTo   = document.getElementById('dateTo').value;
+  if(dateFrom && dateTo){ curPage=0; render(); }
+}
+
+function setFilter(f, el){
+  document.querySelectorAll('.fpill').forEach(function(e){ e.classList.remove('on'); });
+  el.classList.add('on');
+  curFilter = f;
+  curPage = 0; render();
+}
+
+function getFiltered(){
+  var catF  = document.getElementById('catFilter').value;
+  var srch  = document.getElementById('srch').value.toLowerCase();
+  var sortBy= document.getElementById('sortSel').value;
+
+  // Aggregate by product over date range
+  var aggMap = {};
+  PRODUCTS.forEach(function(p){
+    if(p.date < dateFrom || p.date > dateTo) return;
+    var k = p.ean || p.name;
+    if(!aggMap[k]) aggMap[k] = {name:p.name, category:p.category||'Остальные',
+      orders:0, revenue:0, commission:0, ads:0, profit:0, ean:p.ean};
+    aggMap[k].orders     += p.orders     || 0;
+    aggMap[k].revenue    += p.revenue    || 0;
+    aggMap[k].commission += p.commission || 0;
+    aggMap[k].ads        += p.ads        || 0;
+    aggMap[k].profit     += p.profit     || 0;
+  });
+
+  var arr = Object.values(aggMap);
+
+  // Filters
+  if(curFilter === 'active')  arr = arr.filter(function(p){ return p.orders > 0; });
+  if(curFilter === 'notsold') arr = arr.filter(function(p){ return p.orders === 0; });
+  if(catF) arr = arr.filter(function(p){ return p.category === catF; });
+  if(srch) arr = arr.filter(function(p){ return p.name.toLowerCase().indexOf(srch) !== -1; });
+
+  // Sort
+  arr.sort(function(a,b){
+    if(sortBy === 'name')   return a.name.localeCompare(b.name);
+    if(sortBy === 'margin'){
+      var ma = a.revenue > 0 ? a.profit/a.revenue : 0;
+      var mb = b.revenue > 0 ? b.profit/b.revenue : 0;
+      return mb-ma;
+    }
+    return b[sortBy]-a[sortBy];
+  });
+  return arr;
+}
+
+function render(){
+  var arr = getFiltered();
+  var page = arr.slice(curPage*PAGE_SIZE, (curPage+1)*PAGE_SIZE);
+
+  if(arr.length === 0){
+    document.getElementById('prod-list').innerHTML =
+      '<div class="no-data">Нет данных за выбранный период.<br><small>Запусти <b>fetch_offers.yml</b> для загрузки данных по офферам.</small></div>';
+    document.getElementById('pagination').innerHTML = '';
+    return;
+  }
+
+  var html = page.map(function(p){
+    var margin = p.revenue > 0 ? (p.profit/p.revenue*100) : 0;
+    var mColor = margin >= 0 ? '#0F6E56' : '#A32D2D';
+    return '<div class="prod-row">'
+      +'<div><div class="pr-name">'+p.name+'</div><div class="pr-cat">'+p.category+'</div></div>'
+      +'<div class="pr-val">'+fmtN(p.orders)+'</div>'
+      +'<div class="pr-val">'+fmt(p.revenue)+' zł</div>'
+      +'<div class="pr-val neg">-'+fmt(p.commission)+' zł</div>'
+      +'<div class="pr-val neg">-'+fmt(p.ads)+' zł</div>'
+      +'<div class="pr-val '+(p.profit>=0?'pos':'neg')+'">'+fmt(p.profit)+' zł</div>'
+      +'<div class="pr-val" style="color:'+mColor+';font-weight:700">'+margin.toFixed(1)+'%</div>'
+      +'</div>';
+  }).join('');
+
+  document.getElementById('prod-list').innerHTML = html;
+
+  // Pagination
+  var total = arr.length;
+  var pages = Math.ceil(total / PAGE_SIZE);
+  document.getElementById('pagination').innerHTML =
+    'Показано '+(curPage*PAGE_SIZE+1)+'–'+Math.min((curPage+1)*PAGE_SIZE, total)+' из '+total+
+    '<button class="pg-btn" style="margin-left:auto" onclick="goPage('+(curPage-1)+')" '+(curPage===0?'disabled':'')+'>← Назад</button>'+
+    '<button class="pg-btn" onclick="goPage('+(curPage+1)+')" '+((curPage+1)>=pages?'disabled':'')+'>Вперёд →</button>';
+}
+
+function goPage(p){ curPage=p; render(); window.scrollTo(0,0); }
+
+// Load products.json
+document.getElementById('prod-list').innerHTML =
+  '<div class="loading"><div class="loading-spin"></div><br>Загрузка данных...</div>';
+
+fetch('products.json?_='+Date.now())
+  .then(function(r){ return r.json(); })
+  .then(function(d){
+    PRODUCTS = Array.isArray(d) ? d : (d.products || []);
+
+    // Build category filter
+    var cats = [...new Set(PRODUCTS.map(function(p){ return p.category||'Остальные'; }))].sort();
+    var sel = document.getElementById('catFilter');
+    cats.forEach(function(c){
+      var opt = document.createElement('option');
+      opt.value = opt.textContent = c;
+      sel.appendChild(opt);
+    });
+
+    dateTo   = today();
+    dateFrom = addDays(dateTo, -6);
+    document.getElementById('dateFrom').value = dateFrom;
+    document.getElementById('dateTo').value   = dateTo;
+    render();
+  })
+  .catch(function(){
+    document.getElementById('prod-list').innerHTML =
+      '<div class="no-data">⚠ products.json не найден.<br><small>Запусти <b>fetch_offers.yml</b> в GitHub Actions для загрузки данных по офферам.</small></div>';
+    document.getElementById('pagination').innerHTML='';
+  });
+</script>
+</body>
+</html>

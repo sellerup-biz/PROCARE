@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PROCARE · Продажи по категориям</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#F0F7F4;color:#1a1a1a;min-height:100vh;padding:1.5rem}
+
+.hdr{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid #c8e6dc;border-radius:14px;padding:12px 18px;margin-bottom:1.25rem;flex-wrap:wrap}
+.logo{width:38px;height:38px;background:#0F6E56;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0;text-align:center;line-height:1.2}
+.hdr h1{font-size:20px;font-weight:700;letter-spacing:2px}
+.hdr p{font-size:11px;color:#888;margin-top:2px}
+.hdr-nav{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.btn-nav{font-size:12px;padding:7px 16px;border-radius:8px;background:#edfaf5;color:#0F6E56;border:1px solid #c8e6dc;cursor:pointer;text-decoration:none;display:inline-block;font-weight:500;white-space:nowrap}
+.btn-nav:hover{background:#d4f2e7;border-color:#0F6E56}
+
+.loading{padding:64px;text-align:center;color:#aaa;font-size:13px}
+.loading-spin{display:inline-block;width:28px;height:28px;border:3px solid #c8e6dc;border-top-color:#0F6E56;border-radius:50%;animation:spin .8s linear infinite;margin-bottom:12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.date-bar{background:#fff;border:1px solid #c8e6dc;border-radius:12px;padding:10px 14px;margin-bottom:1rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.dpreset{font-size:12px;padding:5px 14px;border-radius:20px;border:1px solid #c8e6dc;background:#f5fdf9;color:#555;cursor:pointer;font-weight:500;transition:all .15s;white-space:nowrap}
+.dpreset:hover:not(.on){border-color:#0F6E56;color:#0F6E56;background:#edfaf5}
+.dpreset.on{background:#0F6E56;color:#fff;border-color:#0F6E56;font-weight:700}
+.d-sep{width:1px;height:22px;background:#c8e6dc;flex-shrink:0}
+.date-inputs{display:flex;align-items:center;gap:7px}
+.date-lbl{font-size:11px;color:#aaa;white-space:nowrap}
+.date-inp{font-size:12px;padding:5px 9px;border:1px solid #c8e6dc;border-radius:8px;background:#f5fdf9;color:#1a1a1a;cursor:pointer;outline:none;font-family:inherit}
+.date-inp:focus{border-color:#0F6E56}
+.date-arrow{font-size:12px;color:#bbb}
+.d-pill{margin-left:auto;font-size:10px;padding:3px 9px;border-radius:4px;background:#e8f4ef;color:#085041;font-weight:600}
+
+.chart-card{background:#fff;border:1px solid #c8e6dc;border-radius:14px;padding:1.25rem 1.5rem;margin-bottom:1.25rem}
+.chart-title{font-size:14px;font-weight:700;margin-bottom:4px}
+.chart-sub{font-size:11px;color:#999;margin-bottom:1rem}
+
+.tbl-card{background:#fff;border:1px solid #c8e6dc;border-radius:14px;overflow:hidden;margin-bottom:1rem}
+.tbl-hdr{padding:12px 16px 10px;border-bottom:2px solid #e8f4ef;background:#f5fdf9;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.tbl-hdr-title{font-size:13px;font-weight:700}
+.sort-wrap{display:flex;align-items:center;gap:6px}
+.sort-lbl{font-size:11px;color:#aaa}
+.sort-sel{font-size:12px;padding:5px 10px;border:1px solid #c8e6dc;border-radius:8px;background:#f5fdf9;color:#555;cursor:pointer;outline:none;font-family:inherit}
+
+.cat-table{width:100%;border-collapse:collapse}
+.cat-table th{font-size:10px;font-weight:700;color:#aaa;letter-spacing:.5px;text-transform:uppercase;padding:9px 14px;text-align:right;cursor:pointer;user-select:none;white-space:nowrap;background:#f5fdf9;border-bottom:2px solid #e8f4ef}
+.cat-table th:first-child{text-align:left}
+.cat-table th:hover,.cat-table th.sorted{color:#0F6E56}
+.cat-table td{padding:10px 14px;border-bottom:1px solid #f0faf6;font-size:13px;text-align:right}
+.cat-table td:first-child{text-align:left;font-weight:600}
+.cat-table tr:hover td{background:#f5fdf9}
+.cat-table tfoot td{font-weight:700;border-top:2px solid #c8e6dc;border-bottom:none;background:#f5fdf9}
+.bar-cell{display:flex;align-items:center;gap:8px;justify-content:flex-end}
+.bar{height:6px;border-radius:3px;background:#0F6E56;opacity:.7;flex-shrink:0}
+.neg{color:#A32D2D}
+.pos{color:#0F6E56}
+
+.no-data{padding:48px;text-align:center;color:#aaa;font-size:13px}
+.footer{text-align:center;font-size:11px;color:#ccc;margin-top:.5rem;letter-spacing:1px}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="logo">PRO<br>CARE</div>
+  <div>
+    <h1>PROCARE · Категории</h1>
+    <p>Продажи по категориям · ProCare · Allegro PL</p>
+  </div>
+  <div class="hdr-nav">
+    <a href="index.html" class="btn-nav">← Главный</a>
+    <a href="analytics.html" class="btn-nav">Аналитика</a>
+    <a href="unit_economy.html" class="btn-nav">Юнит-экономика</a>
+  </div>
+</div>
+
+<!-- DATE BAR -->
+<div class="date-bar">
+  <span class="dpreset on" onclick="setPreset(7,this)">7 дней</span>
+  <span class="dpreset" onclick="setPreset(30,this)">30 дней</span>
+  <span class="dpreset" onclick="setPreset(90,this)">3 месяца</span>
+  <div class="d-sep"></div>
+  <div class="date-inputs">
+    <span class="date-lbl">с</span>
+    <input type="date" id="dateFrom" class="date-inp" onchange="applyCustom()">
+    <span class="date-arrow">→</span>
+    <span class="date-lbl">по</span>
+    <input type="date" id="dateTo" class="date-inp" onchange="applyCustom()">
+  </div>
+  <span class="d-pill" id="period-pill">7 дней</span>
+</div>
+
+<!-- CHART -->
+<div class="chart-card">
+  <div class="chart-title">Продажи по категориям</div>
+  <div class="chart-sub">Выручка по категориям за выбранный период · ProCare</div>
+  <canvas id="catChart" style="max-height:320px"></canvas>
+</div>
+
+<!-- TABLE -->
+<div class="tbl-card">
+  <div class="tbl-hdr">
+    <div class="tbl-hdr-title">Детализация по категориям</div>
+    <div class="sort-wrap">
+      <span class="sort-lbl">Сортировка:</span>
+      <select class="sort-sel" id="sortSel" onchange="renderTable()">
+        <option value="revenue">Выручка ↓</option>
+        <option value="orders">Заказы ↓</option>
+        <option value="name">Название ↑</option>
+      </select>
+    </div>
+  </div>
+  <div id="tbl-body"></div>
+</div>
+
+<div class="footer">PROCARE · КАТЕГОРИИ · 2026</div>
+
+<script>
+var PRODUCTS = [];
+var DATE_MAX = '';
+var dateFrom = '', dateTo = '';
+var catChart = null;
+
+function fmt(n){ return n.toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmtN(n){ return Math.round(n).toLocaleString('ru-RU'); }
+
+function today(){ return new Date().toISOString().slice(0,10); }
+function addDays(d, n){
+  var dt = new Date(d); dt.setDate(dt.getDate()+n); return dt.toISOString().slice(0,10);
+}
+
+function setPreset(days, el){
+  document.querySelectorAll('.dpreset').forEach(function(e){ e.classList.remove('on'); });
+  el.classList.add('on');
+  dateTo   = today();
+  dateFrom = addDays(dateTo, -days+1);
+  document.getElementById('dateFrom').value = dateFrom;
+  document.getElementById('dateTo').value   = dateTo;
+  document.getElementById('period-pill').textContent = days + ' дней';
+  render();
+}
+
+function applyCustom(){
+  document.querySelectorAll('.dpreset').forEach(function(e){ e.classList.remove('on'); });
+  dateFrom = document.getElementById('dateFrom').value;
+  dateTo   = document.getElementById('dateTo').value;
+  if(dateFrom && dateTo) render();
+}
+
+// Filter products by date and aggregate by category
+function buildCatData(){
+  var catMap = {};
+  PRODUCTS.forEach(function(p){
+    if(p.date < dateFrom || p.date > dateTo) return;
+    var cat = p.category || 'Остальные';
+    if(!catMap[cat]) catMap[cat] = {revenue:0, orders:0, skus:new Set()};
+    catMap[cat].revenue += p.revenue || 0;
+    catMap[cat].orders  += p.orders  || 0;
+    catMap[cat].skus.add(p.ean || p.name);
+  });
+  return Object.entries(catMap).map(function(e){
+    return {name:e[0], revenue:Math.round(e[1].revenue*100)/100,
+            orders:e[1].orders, skus:e[1].skus.size};
+  });
+}
+
+function render(){
+  var cats = buildCatData();
+  if(cats.length === 0){
+    document.getElementById('tbl-body').innerHTML =
+      '<div class="no-data">Нет данных за выбранный период.<br><small>Запусти <b>fetch_offers.yml</b> для загрузки данных по офферам.</small></div>';
+    if(catChart){ catChart.destroy(); catChart=null; }
+    return;
+  }
+  renderChart(cats);
+  renderTable(cats);
+}
+
+function renderChart(cats){
+  var sorted = cats.slice().sort(function(a,b){ return b.revenue-a.revenue; }).slice(0,10);
+  var labels = sorted.map(function(c){ return c.name; });
+  var values = sorted.map(function(c){ return c.revenue; });
+  var colors = ['#0F6E56','#1a8a6e','#24a684','#2ec29a','#38deb0',
+                '#42fab6','#185FA5','#A32D2D','#BA7517','#6b7280'].slice(0,sorted.length);
+  if(catChart) catChart.destroy();
+  catChart = new Chart(document.getElementById('catChart').getContext('2d'),{
+    type:'bar',
+    data:{labels:labels,datasets:[{
+      data:values, backgroundColor:colors, borderRadius:5, borderWidth:0
+    }]},
+    options:{
+      responsive:true, maintainAspectRatio:true, indexAxis:'y',
+      plugins:{legend:{display:false},tooltip:{callbacks:{
+        label:function(c){ return ' '+fmt(c.parsed.x)+' zł'; }
+      }}},
+      scales:{
+        x:{grid:{color:'rgba(0,0,0,0.03)'},ticks:{callback:function(v){ return (v/1000).toFixed(0)+'k zł'; }}},
+        y:{grid:{display:false},ticks:{font:{size:11}}}
+      }
+    }
+  });
+}
+
+function renderTable(){
+  var cats = buildCatData();
+  var sortBy = document.getElementById('sortSel').value;
+  cats.sort(function(a,b){
+    if(sortBy==='name') return a.name.localeCompare(b.name);
+    return b[sortBy]-a[sortBy];
+  });
+  var totalRev = cats.reduce(function(s,c){ return s+c.revenue; },0);
+  var totalOrd = cats.reduce(function(s,c){ return s+c.orders; },0);
+  var maxRev   = cats.length ? cats.reduce(function(m,c){ return Math.max(m,c.revenue); },0) : 1;
+
+  var html = '<table class="cat-table"><thead><tr>'
+    +'<th>Категория</th><th>Выручка, PLN</th><th>% от итога</th><th>Заказы</th><th>SKU</th>'
+    +'</tr></thead><tbody>';
+
+  if(cats.length === 0){
+    html += '<tr><td colspan="5" class="no-data">Нет данных</td></tr>';
+  } else {
+    cats.forEach(function(c){
+      var pct = totalRev > 0 ? (c.revenue/totalRev*100).toFixed(1) : '0.0';
+      var barW = maxRev > 0 ? Math.round(c.revenue/maxRev*100) : 0;
+      html += '<tr>'
+        +'<td>'+c.name+'</td>'
+        +'<td><div class="bar-cell"><div class="bar" style="width:'+barW+'px"></div>'+fmt(c.revenue)+' zł</div></td>'
+        +'<td>'+pct+'%</td>'
+        +'<td>'+fmtN(c.orders)+'</td>'
+        +'<td>'+c.skus+'</td>'
+        +'</tr>';
+    });
+  }
+  html += '</tbody><tfoot><tr>'
+    +'<td>Итого</td>'
+    +'<td>'+fmt(totalRev)+' zł</td>'
+    +'<td>100%</td>'
+    +'<td>'+fmtN(totalOrd)+'</td>'
+    +'<td>—</td>'
+    +'</tr></tfoot></table>';
+
+  document.getElementById('tbl-body').innerHTML = html;
+}
+
+// Load products.json
+document.getElementById('tbl-body').innerHTML =
+  '<div class="loading"><div class="loading-spin"></div><br>Загрузка данных...</div>';
+
+fetch('products.json?_='+Date.now())
+  .then(function(r){ return r.json(); })
+  .then(function(d){
+    PRODUCTS = Array.isArray(d) ? d : (d.products || []);
+    // Init dates
+    dateTo   = today();
+    dateFrom = addDays(dateTo, -6);
+    document.getElementById('dateFrom').value = dateFrom;
+    document.getElementById('dateTo').value   = dateTo;
+    render();
+  })
+  .catch(function(){
+    document.getElementById('tbl-body').innerHTML =
+      '<div class="no-data">⚠ products.json не найден.<br><small>Запусти <b>fetch_offers.yml</b> в GitHub Actions для загрузки данных по офферам.</small></div>';
+  });
+</script>
+</body>
+</html>
