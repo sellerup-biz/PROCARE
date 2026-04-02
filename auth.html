@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PROCARE · Авторизация Allegro</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+         background: #F0F7F4; min-height: 100vh; padding: 2rem; color: #333; }
+  .container { max-width: 520px; margin: 0 auto; }
+  h1 { font-size: 1.4rem; font-weight: 700; color: #0F6E56; margin-bottom: 0.25rem; }
+  .subtitle { color: #888; font-size: 0.9rem; margin-bottom: 2rem; }
+  .card { background: #fff; border: 1px solid #c8e6dc; border-radius: 12px;
+          padding: 1.5rem; margin-bottom: 1rem; }
+  .card h2 { font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem; }
+  .card p { font-size: 0.85rem; color: #666; margin-bottom: 1rem; line-height: 1.5; }
+  .btn { display: block; width: 100%; padding: 0.75rem 1rem; border: none;
+         border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer;
+         text-decoration: none; text-align: center; transition: opacity 0.2s; }
+  .btn:hover { opacity: 0.85; }
+  .btn-procare { background: #0F6E56; color: #fff; }
+  .notice { background: #edfaf5; border: 1px solid #0F6E56; border-radius: 10px;
+            padding: 1rem 1.25rem; margin-bottom: 1.5rem; font-size: 0.85rem;
+            color: #085041; line-height: 1.6; }
+  .notice b { color: #0F6E56; }
+  .step { display: inline-flex; align-items: center; justify-content: center;
+          width: 22px; height: 22px; border-radius: 50%; background: #0F6E56;
+          color: #fff; font-size: 0.75rem; font-weight: 700; margin-right: 0.5rem; }
+  .token-input { width: 100%; padding: 0.6rem 0.75rem; border: 1px solid #c8e6dc;
+                 border-radius: 8px; font-size: 0.85rem; margin-bottom: 1rem;
+                 font-family: monospace; }
+  .token-input:focus { outline: none; border-color: #0F6E56; }
+  label { font-size: 0.82rem; color: #666; display: block; margin-bottom: 0.4rem; }
+  .logo { display: inline-block; background: #0F6E56; color: #fff; font-weight: 800;
+          font-size: 14px; padding: 4px 10px; border-radius: 6px; letter-spacing: 2px;
+          margin-bottom: 0.5rem; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="logo">PROCARE</div>
+  <h1>Авторизация Allegro</h1>
+  <p class="subtitle">Получение refresh token для магазина</p>
+
+  <div class="notice">
+    <b>Порядок действий:</b><br>
+    <span class="step">1</span> Введи GitHub Token ниже<br>
+    <span class="step">2</span> Войди в браузере в аккаунт Allegro магазина ProCare<br>
+    <span class="step">3</span> Нажми кнопку → подтверди авторизацию на Allegro<br>
+    <span class="step">4</span> Токен сохранится автоматически в GitHub Secrets ✅
+  </div>
+
+  <div class="card">
+    <h2>🔑 GitHub Token</h2>
+    <p>Нужен для автоматического сохранения токена в Secrets. Вводится один раз.</p>
+    <label for="gh_token">Personal Access Token (contents: read+write, secrets: write)</label>
+    <input type="password" id="gh_token" class="token-input" placeholder="github_pat_..." autocomplete="off">
+  </div>
+
+  <div class="card">
+    <h2>🟢 ProCare</h2>
+    <p>Войди в браузере под аккаунтом <b>ProCare</b> на Allegro, затем нажми кнопку.</p>
+    <a href="#" class="btn btn-procare" onclick="authorize('PROCARE','YOUR_CLIENT_ID_HERE');return false;">
+      Авторизовать ProCare →
+    </a>
+    <p style="margin-top:0.75rem;font-size:0.78rem;color:#e57300">
+      ⚠ Замени <code>YOUR_CLIENT_ID_HERE</code> в коде на реальный Client ID из Allegro Developer Panel.
+    </p>
+  </div>
+
+  <p style="font-size:0.8rem;color:#aaa;margin-top:1rem;text-align:center">
+    <a href="index.html" style="color:#0F6E56">← Вернуться на главный дашборд</a>
+  </p>
+</div>
+
+<script>
+const REDIRECT_URI = 'https://sellerup-biz.github.io/PROCARE/callback.html';
+
+function authorize(shop, clientId) {
+  if (clientId === 'YOUR_CLIENT_ID_HERE') {
+    alert('Сначала замени YOUR_CLIENT_ID_HERE на реальный Client ID в коде auth.html!');
+    return;
+  }
+  const ghToken = document.getElementById('gh_token').value.trim();
+  if (!ghToken) {
+    alert('Введи GitHub Token перед авторизацией!');
+    return;
+  }
+  sessionStorage.setItem('gh_token', ghToken);
+  sessionStorage.setItem('pending_shop', shop);
+
+  const url = `https://allegro.pl/auth/oauth/authorize?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}`;
+  window.location.href = url;
+}
+</script>
+</body>
+</html>
