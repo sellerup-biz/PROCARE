@@ -1,0 +1,30 @@
+name: Auth — Exchange code for refresh_token
+
+on:
+  workflow_dispatch:
+    inputs:
+      shop:
+        description: 'Shop key (PROCARE)'
+        required: true
+        default: 'PROCARE'
+      code:
+        description: 'Authorization code from Allegro'
+        required: true
+
+jobs:
+  auth:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install requests PyNaCl
+      - name: Exchange code for token
+        run: python auth_exchange.py
+        env:
+          SHOP:                   ${{ github.event.inputs.shop }}
+          CODE:                   ${{ github.event.inputs.code }}
+          CLIENT_ID_PROCARE:      ${{ secrets.CLIENT_ID_PROCARE }}
+          CLIENT_SECRET_PROCARE:  ${{ secrets.CLIENT_SECRET_PROCARE }}
+          GH_TOKEN:               ${{ secrets.GH_TOKEN }}
