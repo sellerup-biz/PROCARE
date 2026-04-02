@@ -433,8 +433,22 @@ def main():
         n = len(month_cache[current_ym]["days"])
         print(f"  Saved unit_data/{current_ym}.json ({n} days)")
 
-    # ── Step 4: Build products.json ──────────────────────────────────────────
+    # ── Step 4: Build products.json (preserve existing COG) ─────────────────
     print(f"\n[4/4] Building products.json...")
+
+    # Load existing products.json to preserve COG data entered manually
+    existing_cog = {}  # {offer_id: cog_dict}
+    if os.path.exists("products.json"):
+        try:
+            with open("products.json", encoding="utf-8") as f:
+                old_pj = json.load(f)
+            for p in old_pj.get("products", []):
+                oid = p.get("offers", {}).get(SHOP_NAME, "")
+                if oid and p.get("cog"):
+                    existing_cog[oid] = p["cog"]
+            print(f"  Preserved COG for {len(existing_cog)} offers from existing products.json")
+        except Exception as e:
+            print(f"  WARNING: could not load existing products.json: {e}")
 
     seen_ids = set()
     all_offer_ids_ordered = []
@@ -453,12 +467,15 @@ def main():
     products = []
     for oid in all_offer_ids_ordered:
         info = catalog.get(oid, {"name": oid, "category": "Остальные"})
-        products.append({
+        entry = {
             "ean":      oid,
             "name":     info["name"],
             "category": info["category"],
             "offers":   {SHOP_NAME: oid},
-        })
+        }
+        if oid in existing_cog:
+            entry["cog"] = existing_cog[oid]
+        products.append(entry)
 
     products_json = {
         "products": products,
