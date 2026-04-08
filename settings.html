@@ -87,7 +87,13 @@ input:focus{border-color:#0F6E56}
     Собирает <b>вчера</b> (полный день) и <b>сегодня</b> (частичный), обновляет <code style="font-size:11px;background:#f0f7f4;padding:1px 5px;border-radius:3px">data.json</code> в репозитории.<br>
     Автоматически запускается каждую ночь в 3:00 UTC. Кнопка для ручного запуска в любой момент.
   </div>
-  <button class="btn btn-primary" style="background:#185FA5;border-color:#185FA5" onclick="triggerSync()">⟳ Синхронизация</button>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+    <button class="btn btn-primary" style="background:#185FA5;border-color:#185FA5" onclick="triggerSync()">⟳ Синхронизация</button>
+    <div style="width:1px;height:28px;background:#c8e6dc"></div>
+    <button class="btn btn-secondary" onclick="triggerOffers()" title="Пересобрать юнит-данные с правильной конвертацией валют">📦 Пересобрать юнит-данные</button>
+    <input type="number" id="offersDays" value="100" min="7" max="365" style="width:70px;padding:6px 8px;border:1px solid #c8e6dc;border-radius:8px;font-size:12px;font-family:inherit" title="Количество дней истории">
+    <span style="font-size:11px;color:#aaa">дней</span>
+  </div>
   <div id="syncStatus" style="font-size:11px;color:#888;margin-top:8px;display:none"></div>
 </div>
 
@@ -430,6 +436,21 @@ function triggerWorkflow(workflowFile, statusElId) {
 
 function triggerSync()      { triggerWorkflow('fetch.yml',      'syncStatus'); }
 function triggerUpdateCOG() { triggerWorkflow('upload_cog.yml', 'cogStatus'); }
+function triggerOffers() {
+  var days = document.getElementById('offersDays').value || '100';
+  var token = document.getElementById('gh_token').value.trim();
+  if(!token){ alert('Введи GitHub Token выше'); return; }
+  showStatus('syncStatus','info','⏳ Запускаю пересборку юнит-данных за '+days+' дней...');
+  fetch('https://api.github.com/repos/'+GH_REPO+'/actions/workflows/fetch_offers.yml/dispatches', {
+    method: 'POST',
+    headers: {'Authorization':'token '+token,'Content-Type':'application/json'},
+    body: JSON.stringify({ref:'main', inputs:{days: String(days)}})
+  }).then(function(r){
+    if(r.status===204) showStatus('syncStatus','ok','✓ Запущен! Юнит-данные пересобираются (~5-10 мин). Валюты будут конвертированы правильно.');
+    else if(r.status===401||r.status===403) showStatus('syncStatus','err','✗ Неверный GitHub Token');
+    else showStatus('syncStatus','err','✗ Ошибка HTTP '+r.status);
+  }).catch(function(e){ showStatus('syncStatus','err','✗ '+e.message); });
+}
 
 function uploadXLS() {
   var token = document.getElementById('gh_token').value.trim();
