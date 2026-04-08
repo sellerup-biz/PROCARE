@@ -9,7 +9,7 @@
 body{font-family:'Segoe UI',system-ui,sans-serif;background:#F0F7F4;color:#1a1a1a;min-height:100vh;padding:1.75rem}
 
 .header{display:flex;align-items:center;gap:14px;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1.5px solid #c8e6dc}
-.logo{width:46px;height:46px;background:#0F6E56;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;letter-spacing:1px;flex-shrink:0}
+.logo{width:46px;height:46px;background:#0F6E56;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;letter-spacing:1px;flex-shrink:0;text-align:center;line-height:1.2}
 .header h1{font-size:26px;font-weight:800;letter-spacing:4px;color:#1a1a1a}
 .header p{font-size:12px;color:#888;margin-top:3px}
 
@@ -32,10 +32,75 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F0F7F4;color:#1a1a1
 .footer{text-align:center;font-size:11px;color:#ccc;margin-top:0.5rem;letter-spacing:1px}
 
 /* NAV LINKS */
-.nav-link{font-size:12px;padding:7px 16px;border-radius:8px;background:#edfaf5;color:#0F6E56;text-decoration:none;font-weight:600;border:1px solid #c8e6dc}
+.nav-link{font-size:12px;padding:7px 16px;border-radius:8px;background:#edfaf5;color:#0F6E56;text-decoration:none;font-weight:600;border:1px solid #c8e6dc;white-space:nowrap}
 .nav-link:hover{background:#d4f2e7}
-.nav-link.primary{background:#0F6E56;color:#fff;border-color:#0F6E56}
-.nav-link.primary:hover{background:#0a5541}
+.nav-link.active{background:#0F6E56;color:#fff;border-color:#0F6E56}
+.nav-link.active:hover{background:#0a5541}
+
+/* LEGEND */
+.legend-item{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:#555}
+.legend-dot{width:10px;height:10px;border-radius:2px;display:inline-block}
+
+/* SHOP BREAKDOWN */
+.shop-breakdown{display:flex;gap:16px;flex-wrap:wrap;margin-top:6px}
+.shop-breakdown-item{font-size:12px;display:flex;align-items:center;gap:5px}
+.shop-breakdown-dot{width:8px;height:8px;border-radius:2px;display:inline-block}
+
+/* SYNC PLACEHOLDER */
+.sync-area{display:flex;align-items:center}
+
+/* ── ANALYTICS SECTION ───────────────────────────── */
+.section-divider{display:flex;align-items:center;gap:12px;margin:1.5rem 0 1rem}
+.section-divider span{font-size:13px;font-weight:700;color:#1a1a1a;letter-spacing:1px;white-space:nowrap}
+.section-divider::before,.section-divider::after{content:'';flex:1;height:1px;background:#c8e6dc}
+
+.tabs{display:flex;gap:8px;margin-bottom:1.25rem;flex-wrap:wrap}
+.tab{font-size:12px;padding:7px 18px;border-radius:8px;border:1px solid #c8e6dc;background:#fff;color:#777;cursor:pointer;font-weight:500;transition:all 0.15s}
+.tab.on{background:#0F6E56;color:#fff;border-color:#0F6E56;font-weight:700}
+.tab:hover:not(.on):not(.future){background:#edfaf5;border-color:#0F6E56;color:#0F6E56}
+.tab.future{color:#ccc;border-color:#e0ece8;background:#f5faf8;cursor:default;font-style:italic}
+
+.sl{font-size:9px;font-weight:700;color:#aaa;letter-spacing:1.2px;text-transform:uppercase;margin:0 0 8px 2px}
+
+.c4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:1.25rem}
+@media(max-width:700px){.c4{grid-template-columns:1fr 1fr}}
+.mc{background:#fff;border:1px solid #c8e6dc;border-radius:12px;padding:12px 16px}
+.mc-l{font-size:10px;color:#888;margin-bottom:6px;font-weight:600}
+.mc-v{font-size:18px;font-weight:700;color:#1a1a1a}
+.mc-s{font-size:10px;color:#bbb;margin-top:3px}
+.mc.tl .mc-v{color:#0F6E56}
+.mc.gd{background:#0F6E56;border-color:#0F6E56}
+.mc.gd .mc-l{color:rgba(255,255,255,0.75)}
+.mc.gd .mc-v{color:#fff;font-size:20px}
+.mc.gd .mc-s{color:rgba(255,255,255,0.6)}
+
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1.25rem}
+@media(max-width:700px){.two{grid-template-columns:1fr}}
+
+.pn{background:#fff;border:1px solid #c8e6dc;border-radius:12px;padding:14px 16px}
+.pt{font-size:12px;font-weight:700;color:#1a1a1a;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.tag{font-size:9px;padding:2px 7px;border-radius:3px;font-weight:700}
+.tt{background:#E1F5EE;color:#085041}
+.tr{background:#FCEBEB;color:#791F1F}
+.ta{background:#FAEEDA;color:#854F0B}
+
+.crow{display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0faf6;font-size:11px;color:#1a1a1a;gap:8px}
+.crow:last-child{border-bottom:none;font-weight:700}
+.crow-r{display:flex;align-items:baseline;gap:8px;flex-shrink:0}
+.pct{font-size:10px;color:#aaa;min-width:38px;text-align:right}
+.neg{color:#A32D2D}
+
+.chart-wrap{background:#fff;border:1px solid #c8e6dc;border-radius:12px;padding:14px 16px;margin-bottom:1.25rem}
+
+.tbl{width:100%;font-size:10px;border-collapse:collapse}
+.tbl th{text-align:right;padding:5px 6px;color:#aaa;font-weight:600;border-bottom:1px solid #e8f4ef;font-size:9px}
+.tbl th:first-child{text-align:left}
+.tbl td{text-align:right;padding:5px 6px;border-bottom:1px solid #f0faf6;color:#1a1a1a}
+.tbl td:first-child{text-align:left;color:#777}
+.tbl tr:last-child td{border:none;font-weight:700}
+.neg-c{color:#A32D2D}
+
+.shop-tables{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px;margin-bottom:1.25rem}
 </style>
 </head>
 <body>
@@ -44,13 +109,14 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F0F7F4;color:#1a1a1
   <div class="logo">PRO<br>CARE</div>
   <div>
     <h1>PROCARE</h1>
-    <p>Аналитика продаж · Allegro · 1 магазин</p>
+    <p id="headerSubtitle">Аналитика продаж · Allegro</p>
   </div>
-  <div style="margin-left:auto;display:flex;gap:8px;flex-shrink:0;flex-wrap:wrap">
-    <a href="analytics.html" class="nav-link primary">Аналитика</a>
+  <div style="margin-left:auto;display:flex;gap:8px;flex-shrink:0;flex-wrap:wrap;align-items:center">
+    <div id="syncArea" class="sync-area"></div>
+    <a href="index.html" class="nav-link active">Главный</a>
     <a href="categories.html" class="nav-link">Категории</a>
     <a href="unit_economy.html" class="nav-link">Юнит-экономика</a>
-    <a href="auth.html" class="nav-link">Авторизация</a>
+    <a href="settings.html" class="nav-link">Настройки</a>
   </div>
 </div>
 
@@ -61,11 +127,9 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F0F7F4;color:#1a1a1
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
     <div>
       <div class="chart-title">Продажи по дням · последние 30 дней</div>
-      <div class="chart-sub">Allegro PL · обновляется каждую ночь автоматически</div>
+      <div class="chart-sub">Allegro · обновляется каждую ночь автоматически</div>
     </div>
-    <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:#555">
-      <span style="width:10px;height:10px;border-radius:2px;background:#0F6E56;display:inline-block"></span>ProCare
-    </div>
+    <div id="dailyLegend" style="display:flex;gap:12px;flex-wrap:wrap"></div>
   </div>
   <canvas id="salesChart" style="width:100%;max-height:300px"></canvas>
 </div>
@@ -75,7 +139,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F0F7F4;color:#1a1a1
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
     <div>
       <div class="chart-title">Продажи по месяцам · 2026</div>
-      <div class="chart-sub">Allegro PL · обновляется каждую ночь автоматически</div>
+      <div class="chart-sub">Allegro · обновляется каждую ночь автоматически</div>
     </div>
   </div>
   <canvas id="monthlyChart" style="width:100%;max-height:320px"></canvas>
@@ -85,45 +149,113 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F0F7F4;color:#1a1a1
   </div>
 </div>
 
+<!-- ══════════ АНАЛИТИКА ══════════ -->
+<div class="section-divider"><span>Аналитика по месяцам</span></div>
+
+<div class="tabs" id="anTabs"></div>
+<div class="sl" id="anMonthLabel">Продажи за месяц · в PLN</div>
+<div class="c4" id="anCards"></div>
+
+<div class="two">
+  <div class="pn">
+    <div class="pt">Расходы по категориям <span class="tag tr" id="anTagCosts"></span></div>
+    <div id="anCostsBreakdown"></div>
+  </div>
+  <div class="pn" style="background:#f5fdf9;border-color:#b0dccb">
+    <div class="pt">Сводка месяца <span class="tag tt" id="anTagSummary"></span></div>
+    <div id="anSummaryBlock"></div>
+  </div>
+</div>
+
+<div class="sl" id="anShopTableLabel">Детализация</div>
+<div id="anShopTable" style="margin-bottom:1.25rem"></div>
+
+<div class="chart-wrap">
+  <div class="pt" id="anChartTitle">Динамика продаж <span class="tag tt">PLN · по месяцам</span></div>
+  <canvas id="dynChart" style="width:100%;max-height:260px"></canvas>
+</div>
+<!-- ══════════════════════════════ -->
+
 <div class="footer">PROCARE · ALLEGRO DASHBOARD · 2026</div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
-var DATA = {days:[], months:[]};
-var SHOP_COLOR  = '#0F6E56';
-var SHOP_BG     = 'rgba(15,110,86,0.18)';
-var GOAL        = 100000; // целевой месячный оборот PLN — изменить при необходимости
+var DATA   = {days:[], months:[]};
+var CONFIG = {shops:[], goal:100000, project:'PROCARE'};
 
+// ── Analytics state ───────────────────────────────────────────
+var activeMonth = 0;
+var dynChart    = null;
+var ALL_MONTHS  = [
+  'Янв 2026','Фев 2026','Мар 2026','Апр 2026','Май 2026','Июн 2026',
+  'Июл 2026','Авг 2026','Сен 2026','Окт 2026','Ноя 2026','Дек 2026'
+];
+
+// ── Helpers ───────────────────────────────────────────────────
 function fmt(n){
   return n.toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2});
 }
 function fmtK(n){
   return n >= 1000 ? (n/1000).toFixed(1)+'k' : n.toFixed(0);
 }
+function totalSales(record){
+  return CONFIG.shops.reduce(function(sum,s){ return sum+(record[s.name]||0); }, 0);
+}
+function totalCosts(c){
+  return (c.commission||0)+(c.delivery||0)+(c.ads||0)+(c.subscription||0);
+}
+
+// ── LEGEND ────────────────────────────────────────────────────
+function renderLegend(containerId){
+  var html = '';
+  CONFIG.shops.forEach(function(s){
+    html += '<span class="legend-item">'
+      +'<span class="legend-dot" style="background:'+s.color+'"></span>'
+      +s.name+'</span>';
+  });
+  document.getElementById(containerId).innerHTML = html;
+}
 
 // ── GOAL BLOCK ────────────────────────────────────────────────
 function renderGoal(){
   var el = document.getElementById('goalBlock');
   if(!DATA.months || DATA.months.length === 0){ el.innerHTML=''; return; }
+  var goal    = CONFIG.goal || 100000;
   var all     = DATA.months;
   var current = all[all.length - 1];
-  var best    = all.reduce(function(b,m){ return (m.ProCare||0)>(b.ProCare||0)?m:b; }, all[0]);
-  var val     = current.ProCare || 0;
-  var pct     = Math.min(100, Math.round(val / GOAL * 100));
+  var best    = all.reduce(function(b,m){ return totalSales(m)>totalSales(b)?m:b; }, all[0]);
+  var val  = totalSales(current);
+  var pct  = Math.min(100, Math.round(val/goal*100));
+  var bVal = totalSales(best);
+  var breakdownHtml = '';
+  if(CONFIG.shops.length > 1){
+    breakdownHtml = '<div class="shop-breakdown">';
+    CONFIG.shops.forEach(function(s){
+      breakdownHtml += '<span class="shop-breakdown-item">'
+        +'<span class="shop-breakdown-dot" style="background:'+s.color+'"></span>'
+        +'<span>'+s.name+': <b>'+fmt(current[s.name]||0)+' zł</b></span></span>';
+    });
+    breakdownHtml += '</div>';
+  }
+  var titleLabel = CONFIG.shops.length === 1
+    ? 'Цель месяца · '+CONFIG.shops[0].name
+    : 'Цель месяца · Все магазины';
+  var accentColor = CONFIG.shops.length > 0 ? CONFIG.shops[0].color : '#0F6E56';
   el.innerHTML =
     '<div class="goal">'
     +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">'
-    +'<div style="font-size:14px;font-weight:700;color:#1a1a1a">Цель месяца · ProCare</div>'
-    +'<div style="font-size:11px;color:#888">Лучший месяц: <b style="color:#0F6E56">'+fmt(best.ProCare||0)+' zł</b> ('+best.month+')</div>'
+    +'<div style="font-size:14px;font-weight:700;color:#1a1a1a">'+titleLabel+'</div>'
+    +'<div style="font-size:11px;color:#888">Лучший месяц: <b style="color:'+accentColor+'">'+fmt(bVal)+' zł</b> ('+best.month+')</div>'
     +'</div>'
     +'<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px">'
-    +'<span style="font-size:24px;font-weight:800;color:#0F6E56">'+fmt(val)+' zł</span>'
-    +'<span style="font-size:13px;color:#aaa">/ '+fmt(GOAL)+' zł · '+current.month+'</span>'
+    +'<span style="font-size:24px;font-weight:800;color:'+accentColor+'">'+fmt(val)+' zł</span>'
+    +'<span style="font-size:13px;color:#aaa">/ '+fmt(goal)+' zł · '+current.month+'</span>'
     +'</div>'
-    +'<div style="background:#e8f4ef;border-radius:6px;height:8px;overflow:hidden">'
-    +'<div style="background:#0F6E56;height:100%;width:'+pct+'%;border-radius:6px;transition:width 0.5s"></div>'
+    +breakdownHtml
+    +'<div style="background:#e8f4ef;border-radius:6px;height:8px;overflow:hidden;margin-top:8px">'
+    +'<div style="background:'+accentColor+';height:100%;width:'+pct+'%;border-radius:6px;transition:width 0.5s"></div>'
     +'</div>'
-    +'<div style="font-size:11px;color:#0F6E56;margin-top:4px;font-weight:600">'+pct+'% от цели</div>'
+    +'<div style="font-size:11px;color:'+accentColor+';margin-top:4px;font-weight:600">'+pct+'% от цели</div>'
     +'</div>';
 }
 
@@ -131,43 +263,34 @@ function renderGoal(){
 function renderDailyChart(){
   var days = DATA.days.slice(-30);
   var labels = days.map(function(d){
-    var dt = d.date.slice(5); // MM-DD
-    return (d.partial ? '▸' : '') + dt;
+    var dt = d.date.slice(5);
+    return (d.partial?'▸':'')+dt;
   });
-  var values  = days.map(function(d){ return d.ProCare || 0; });
-  var colors  = days.map(function(d){
-    return d.partial ? 'rgba(15,110,86,0.4)' : SHOP_BG;
+  var datasets = CONFIG.shops.map(function(shop){
+    return {
+      label: shop.name,
+      data: days.map(function(d){ return d[shop.name]||0; }),
+      backgroundColor: days.map(function(d){ return d.partial?shop.color+'66':shop.bg; }),
+      borderColor: days.map(function(d){ return d.partial?shop.color+'80':shop.color; }),
+      borderWidth: 2, borderRadius: 4
+    };
   });
-  var borders = days.map(function(d){
-    return d.partial ? 'rgba(15,110,86,0.5)' : SHOP_COLOR;
-  });
-
-  new Chart(document.getElementById('salesChart').getContext('2d'), {
-    type: 'bar',
-    data: {
-      labels: labels,
-      datasets: [{
-        label: 'ProCare',
-        data: values,
-        backgroundColor: colors,
-        borderColor: borders,
-        borderWidth: 2,
-        borderRadius: 4,
-      }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: true,
-      plugins: {
-        legend: { display: false },
-        tooltip: { callbacks: { label: function(c){
-          var d = days[c.dataIndex];
-          return ' '+fmt(c.parsed.y)+' zł'+(d.partial?' (неполный день)':'');
+  new Chart(document.getElementById('salesChart').getContext('2d'),{
+    type:'bar',
+    data:{labels:labels,datasets:datasets},
+    options:{
+      responsive:true,maintainAspectRatio:true,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:function(c){
+          var d=days[c.dataIndex];
+          return ' '+c.dataset.label+': '+fmt(c.parsed.y)+' zł'+(d.partial?' (неполный день)':'');
         }}}
       },
-      scales: {
-        x: { grid:{color:'rgba(0,0,0,0.03)'}, ticks:{font:{size:10},color:'#aaa',maxRotation:45} },
-        y: { grid:{color:'rgba(0,0,0,0.04)'}, ticks:{font:{size:11},color:'#999',
-          callback: function(v){ return fmtK(v)+' zł'; }} }
+      scales:{
+        x:{stacked:true,grid:{color:'rgba(0,0,0,0.03)'},ticks:{font:{size:10},color:'#aaa',maxRotation:45}},
+        y:{stacked:true,grid:{color:'rgba(0,0,0,0.04)'},ticks:{font:{size:11},color:'#999',
+          callback:function(v){return fmtK(v)+' zł';}}}
       }
     }
   });
@@ -176,72 +299,310 @@ function renderDailyChart(){
 // ── MONTHLY CHART ─────────────────────────────────────────────
 function renderMonthlyChart(){
   var labels = DATA.months.map(function(m){ return m.month; });
-  var sales  = DATA.months.map(function(m){ return m.ProCare || 0; });
-  var costs  = DATA.months.map(function(m){
-    var c = m.costs || {};
-    return (c.commission||0)+(c.delivery||0)+(c.ads||0)+(c.subscription||0);
+  var datasets = CONFIG.shops.map(function(shop){
+    return {
+      label: shop.name+' (продажи)',
+      data: DATA.months.map(function(m){ return m[shop.name]||0; }),
+      backgroundColor: shop.bg,
+      borderColor: shop.color,
+      borderWidth: 2, borderRadius: 5, stack:'sales'
+    };
   });
-
-  new Chart(document.getElementById('monthlyChart').getContext('2d'), {
-    type: 'bar',
-    data: {
-      labels: labels,
-      datasets: [
-        { label:'Продажи PLN', data:sales,
-          backgroundColor:SHOP_BG, borderColor:SHOP_COLOR, borderWidth:2, borderRadius:5 },
-        { label:'Расходы PLN', data:costs,
-          backgroundColor:'rgba(163,45,45,0.15)', borderColor:'#A32D2D', borderWidth:2, borderRadius:5 }
-      ]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: true,
-      plugins: {
-        legend: { display:true, position:'bottom', labels:{font:{size:11},color:'#777',boxWidth:10,padding:14} },
-        tooltip: { callbacks: { label: function(c){ return ' '+c.dataset.label+': '+fmt(c.parsed.y)+' zł'; }}}
+  var costsData = DATA.months.map(function(m){ return totalCosts(m.costs||{}); });
+  datasets.push({
+    label:'Расходы PLN',
+    data:costsData,
+    backgroundColor:'rgba(163,45,45,0.15)',
+    borderColor:'#A32D2D',
+    borderWidth:2,borderRadius:5,stack:'costs'
+  });
+  new Chart(document.getElementById('monthlyChart').getContext('2d'),{
+    type:'bar',
+    data:{labels:labels,datasets:datasets},
+    options:{
+      responsive:true,maintainAspectRatio:true,
+      plugins:{
+        legend:{display:true,position:'bottom',labels:{font:{size:11},color:'#777',boxWidth:10,padding:14}},
+        tooltip:{callbacks:{label:function(c){return ' '+c.dataset.label+': '+fmt(c.parsed.y)+' zł';}}}
       },
-      scales: {
-        x: { grid:{color:'rgba(0,0,0,0.03)'}, ticks:{font:{size:11},color:'#999'} },
-        y: { grid:{color:'rgba(0,0,0,0.03)'}, ticks:{font:{size:11},color:'#999',
-          callback: function(v){ return (v/1000).toFixed(0)+'k zł'; }} }
+      scales:{
+        x:{stacked:true,grid:{color:'rgba(0,0,0,0.03)'},ticks:{font:{size:11},color:'#999'}},
+        y:{stacked:true,grid:{color:'rgba(0,0,0,0.03)'},ticks:{font:{size:11},color:'#999',
+          callback:function(v){return (v/1000).toFixed(0)+'k zł';}}}
       }
     }
   });
-
   // Table
-  var html = '<thead><tr>'
-    +'<th style="text-align:left">Месяц</th>'
-    +'<th>Продажи</th><th>Расходы</th><th>Прибыль</th><th>Маржа</th>'
-    +'</tr></thead><tbody>';
+  var multiShop = CONFIG.shops.length > 1;
+  var html = '<thead><tr><th style="text-align:left">Месяц</th>';
+  if(multiShop){ CONFIG.shops.forEach(function(s){ html+='<th>'+s.name+'</th>'; }); }
+  html += '<th>Продажи</th><th>Расходы</th><th>Прибыль</th><th>Маржа</th></tr></thead><tbody>';
   DATA.months.forEach(function(m){
-    var s = m.ProCare || 0;
-    var c = m.costs || {};
-    var r = (c.commission||0)+(c.delivery||0)+(c.ads||0)+(c.subscription||0);
-    var p = s - r + (c.discount||0);
-    var mg = s > 0 ? (p/s*100).toFixed(1) : '0.0';
-    var color = p >= 0 ? '#0F6E56' : '#A32D2D';
-    html += '<tr>'
-      +'<td>'+m.month+'</td>'
-      +'<td>'+fmt(s)+' zł</td>'
-      +'<td style="color:#A32D2D">-'+fmt(r)+' zł</td>'
-      +'<td style="color:'+color+'">'+fmt(p)+' zł</td>'
-      +'<td style="color:'+color+'">'+mg+'%</td>'
-      +'</tr>';
+    var s=totalSales(m); var r=totalCosts(m.costs||{});
+    var disc=(m.costs||{}).discount||0; var p=s-r+disc;
+    var mg=s>0?(p/s*100).toFixed(1):'0.0'; var color=p>=0?'#0F6E56':'#A32D2D';
+    html+='<tr><td>'+m.month+'</td>';
+    if(multiShop){ CONFIG.shops.forEach(function(sh){ html+='<td>'+fmt(m[sh.name]||0)+' zł</td>'; }); }
+    html+='<td>'+fmt(s)+' zł</td><td style="color:#A32D2D">-'+fmt(r)+' zł</td>'
+      +'<td style="color:'+color+'">'+fmt(p)+' zł</td><td style="color:'+color+'">'+mg+'%</td></tr>';
   });
-  html += '</tbody>';
+  html+='</tbody>';
   document.getElementById('monthlyTable').innerHTML = html;
 }
 
+// ── ANALYTICS: TABS ───────────────────────────────────────────
+function renderAnTabs(){
+  var available = DATA.months.map(function(m){ return m.month; });
+  document.getElementById('anTabs').innerHTML = ALL_MONTHS.map(function(name){
+    var idx = available.indexOf(name);
+    if(idx !== -1 && idx === activeMonth)
+      return '<div class="tab on">'+name+'</div>';
+    else if(idx !== -1)
+      return '<div class="tab" onclick="switchMonth('+idx+')">'+name+'</div>';
+    else
+      return '<div class="tab future">'+name+'</div>';
+  }).join('');
+}
+
+// ── ANALYTICS: CARDS ──────────────────────────────────────────
+function renderAnCards(){
+  var m = DATA.months[activeMonth];
+  var sales = totalSales(m);
+  var c = m.costs||{};
+  var costs = totalCosts(c);
+  var profit = sales - costs + (c.discount||0);
+  var margin = sales>0?(profit/sales*100).toFixed(1):'0.0';
+  var salesLabel = CONFIG.shops.length>1
+    ? CONFIG.shops.length+' магазина · продажи'
+    : CONFIG.shops[0].name+' · продажи';
+  var shopBreakdown = '';
+  if(CONFIG.shops.length>1){
+    shopBreakdown = CONFIG.shops.map(function(shop){
+      return '<div class="mc-s" style="margin-top:2px;color:#888">'+shop.name+': '+fmt(m[shop.name]||0)+' zł</div>';
+    }).join('');
+  }
+  document.getElementById('anCards').innerHTML =
+    '<div class="mc tl"><div class="mc-l">'+salesLabel+'</div>'
+      +'<div class="mc-v">'+fmt(sales)+' zł</div>'
+      +'<div class="mc-s">'+m.month+'</div>'+shopBreakdown+'</div>'
+    +'<div class="mc"><div class="mc-l" style="color:#A32D2D">Расходы</div>'
+      +'<div class="mc-v" style="color:#A32D2D">-'+fmt(costs)+' zł</div>'
+      +'<div class="mc-s">'+(sales>0?(costs/sales*100).toFixed(1):0)+'% от продаж</div></div>'
+    +'<div class="mc"><div class="mc-l" style="color:#0F6E56">Прибыль (оценка)</div>'
+      +'<div class="mc-v" style="color:'+(profit>=0?'#0F6E56':'#A32D2D')+'">'+fmt(profit)+' zł</div>'
+      +'<div class="mc-s">маржа '+margin+'%</div></div>'
+    +'<div class="mc gd"><div class="mc-l">Итого (PLN)</div>'
+      +'<div class="mc-v">'+fmt(sales)+' zł</div>'
+      +'<div class="mc-s">'+m.month+'</div></div>';
+  document.getElementById('anMonthLabel').textContent = 'Продажи за '+m.month+' · в PLN';
+  document.getElementById('anTagCosts').textContent   = m.month;
+  document.getElementById('anTagSummary').textContent = m.month;
+}
+
+// ── ANALYTICS: COSTS BREAKDOWN ────────────────────────────────
+function renderAnCostsBreakdown(){
+  var m = DATA.months[activeMonth];
+  var sales = totalSales(m);
+  var c = m.costs||{};
+  var net = totalCosts(c);
+  var rows = [
+    {name:'Obowiązkowe (комиссия)', val:c.commission||0, sign:-1},
+    {name:'Dostawa (доставка)',     val:c.delivery||0,   sign:-1},
+    {name:'Reklama i promowanie',   val:c.ads||0,        sign:-1},
+    {name:'Abonament',              val:c.subscription||0,sign:-1},
+    {name:'Rabaty od Allegro',      val:c.discount||0,   sign:+1}
+  ];
+  var html = rows.map(function(r){
+    if(r.val===0) return '';
+    var pct=sales>0?(r.val/sales*100).toFixed(1):'0.0';
+    var sign=r.sign===1?'+':'-';
+    var vc=r.sign===1?'style="color:#0F6E56;font-size:11px;font-weight:600"':'class="neg" style="font-size:11px;font-weight:600"';
+    var pc=r.sign===1?'style="color:#0F6E56;min-width:38px;text-align:right;font-size:10px"':'class="pct neg"';
+    return '<div class="crow"><span>'+r.name+'</span>'
+      +'<div class="crow-r"><span '+vc+'>'+sign+fmt(r.val)+' zł</span><span '+pc+'>'+pct+'%</span></div></div>';
+  }).join('');
+  var netPct=sales>0?(net/sales*100).toFixed(1):'0.0';
+  html+='<div class="crow" style="border-top:1px solid #c8e6dc;margin-top:4px;padding-top:8px">'
+    +'<span style="font-weight:700">Итого расходы</span>'
+    +'<div class="crow-r"><span class="neg" style="font-size:12px;font-weight:700">-'+fmt(net)+' zł</span>'
+    +'<span class="pct neg" style="font-weight:700">'+netPct+'%</span></div></div>';
+  document.getElementById('anCostsBreakdown').innerHTML = html;
+}
+
+// ── ANALYTICS: SUMMARY ────────────────────────────────────────
+function renderAnSummary(){
+  var m = DATA.months[activeMonth];
+  var c = m.costs||{};
+  var sales = totalSales(m);
+  var costs = totalCosts(c);
+  var profit = sales-costs+(c.discount||0);
+  var margin = sales>0?(profit/sales*100).toFixed(1):0;
+  var html =
+    '<div class="crow"><span>Продажи (PLN)</span>'
+    +'<div class="crow-r"><span style="font-weight:600;color:#0F6E56">'+fmt(sales)+' zł</span></div></div>'
+    +'<div class="crow"><span>Расходы (PLN)</span>'
+    +'<div class="crow-r"><span class="neg" style="font-weight:600">-'+fmt(costs)+' zł</span>'
+    +'<span class="pct neg">'+(sales>0?(costs/sales*100).toFixed(1):0)+'%</span></div></div>';
+  if((c.discount||0)>0){
+    html+='<div class="crow"><span>Rabaty od Allegro</span>'
+      +'<div class="crow-r"><span style="color:#0F6E56;font-weight:600">+'+fmt(c.discount||0)+' zł</span></div></div>';
+  }
+  html+='<div class="crow"><span>Прибыль (оценка)</span>'
+    +'<div class="crow-r"><span style="font-weight:700;color:'+(profit>=0?'#0F6E56':'#A32D2D')+';font-size:13px">'+fmt(profit)+' zł</span>'
+    +'<span class="pct" style="color:'+(profit>=0?'#0F6E56':'#A32D2D')+'">'+margin+'%</span></div></div>';
+  document.getElementById('anSummaryBlock').innerHTML = html;
+}
+
+// ── ANALYTICS: SHOP TABLE ─────────────────────────────────────
+function renderAnShopTable(){
+  var m = DATA.months[activeMonth];
+  var c = m.costs||{};
+  var allSales = totalSales(m);
+  var label = CONFIG.shops.length>1
+    ? 'Детализация по магазинам ('+CONFIG.shops.length+')'
+    : 'Детализация '+CONFIG.shops[0].name;
+  document.getElementById('anShopTableLabel').textContent = label;
+
+  function buildTable(shopName,shopColor,shopSales,sc){
+    var snet=totalCosts(sc);
+    var pct=shopSales>0?(snet/shopSales*100).toFixed(1):'0.0';
+    function row(lbl,val,isPos){
+      if(val===0) return '';
+      var sign=isPos?'+':'-'; var cls=isPos?'style="color:#0F6E56"':'class="neg-c"';
+      var pp=shopSales>0?(val/shopSales*100).toFixed(1):'0.0';
+      return '<tr><td>'+lbl+'</td><td '+cls+'>'+sign+fmt(val)+' zł</td><td '+cls+'>'+pp+'%</td></tr>';
+    }
+    return '<div class="pn">'
+      +'<div class="pt"><span style="color:'+shopColor+'">'+shopName+'</span> <span class="tag tt">'+m.month+'</span></div>'
+      +'<table class="tbl"><thead><tr><th style="text-align:left">Категория</th><th>Сумма</th><th>% продаж</th></tr></thead><tbody>'
+      +'<tr><td>Продажи</td><td>'+fmt(shopSales)+' zł</td><td>100%</td></tr>'
+      +row('Obowiązkowe',sc.commission||0,false)
+      +row('Dostawa',sc.delivery||0,false)
+      +row('Reklama',sc.ads||0,false)
+      +row('Abonament',sc.subscription||0,false)
+      +row('Rabaty',sc.discount||0,true)
+      +'<tr style="border-top:1px solid #c8e6dc"><td style="font-weight:700">Итого расходы</td>'
+      +'<td class="neg-c" style="font-weight:700">-'+fmt(snet)+' zł</td>'
+      +'<td class="neg-c" style="font-weight:700">'+pct+'%</td></tr>'
+      +'</tbody></table></div>';
+  }
+
+  var html = '';
+  if(CONFIG.shops.length===1){
+    html = buildTable(CONFIG.shops[0].name,CONFIG.shops[0].color,allSales,c);
+  } else {
+    html = '<div class="shop-tables">';
+    CONFIG.shops.forEach(function(shop){
+      var shopSales=m[shop.name]||0;
+      var share=allSales>0?shopSales/allSales:0;
+      var sc={
+        commission:(c.commission||0)*share, delivery:(c.delivery||0)*share,
+        ads:(c.ads||0)*share, subscription:(c.subscription||0)*share, discount:(c.discount||0)*share
+      };
+      html+=buildTable(shop.name,shop.color,shopSales,sc);
+    });
+    html+='</div>';
+  }
+  document.getElementById('anShopTable').innerHTML = html;
+}
+
+// ── ANALYTICS: DYNAMIC CHART ──────────────────────────────────
+function renderDynChart(){
+  var labels = DATA.months.map(function(m){ return m.month; });
+  var datasets = CONFIG.shops.map(function(shop){
+    return {
+      label:shop.name,
+      data:DATA.months.map(function(m){ return m[shop.name]||0; }),
+      backgroundColor:shop.bg, borderColor:shop.color,
+      borderWidth:2, borderRadius:5, stack:'sales'
+    };
+  });
+  var costsData = DATA.months.map(function(m){ return totalCosts(m.costs||{}); });
+  var salesTotals = DATA.months.map(function(m){ return totalSales(m); });
+  var costsPct = DATA.months.map(function(m,i){
+    return salesTotals[i]>0?parseFloat((costsData[i]/salesTotals[i]*100).toFixed(1)):0;
+  });
+  datasets.push({
+    label:'Расходы (PLN)',
+    data:costsData,
+    backgroundColor:'rgba(163,45,45,0.15)',
+    borderColor:'#A32D2D',
+    borderWidth:2, borderRadius:5, stack:'costs'
+  });
+  var titleText = CONFIG.shops.length>1
+    ? 'Динамика продаж · '+CONFIG.shops.length+' магазина '
+    : 'Динамика продаж · '+CONFIG.shops[0].name+' ';
+  document.getElementById('anChartTitle').innerHTML = titleText+'<span class="tag tt">PLN · по месяцам</span>';
+  if(dynChart) dynChart.destroy();
+  dynChart = new Chart(document.getElementById('dynChart').getContext('2d'),{
+    type:'bar',
+    data:{labels:labels,datasets:datasets},
+    options:{
+      responsive:true, maintainAspectRatio:true,
+      plugins:{
+        legend:{display:true,position:'bottom',labels:{font:{size:10},color:'#777',boxWidth:10,padding:14}},
+        tooltip:{callbacks:{label:function(c){
+          if(c.dataset.stack==='costs') return ' Расходы: '+fmt(c.parsed.y)+' zł ('+costsPct[c.dataIndex]+'%)';
+          return ' '+c.dataset.label+': '+fmt(c.parsed.y)+' zł';
+        }}}
+      },
+      scales:{
+        x:{stacked:true,grid:{color:'rgba(0,0,0,0.03)'},ticks:{font:{size:11},color:'#999'}},
+        y:{stacked:true,grid:{color:'rgba(0,0,0,0.03)'},ticks:{font:{size:11},color:'#999',
+          callback:function(v){return (v/1000).toFixed(0)+'k zł';}}}
+      }
+    },
+    plugins:[{
+      id:'costLabels',
+      afterDatasetDraw:function(chart,args){
+        var costsIdx=chart.data.datasets.length-1;
+        if(args.index!==costsIdx) return;
+        var ctx=chart.ctx; var meta=chart.getDatasetMeta(costsIdx);
+        meta.data.forEach(function(bar,i){
+          ctx.save(); ctx.font='bold 11px Segoe UI,sans-serif';
+          ctx.fillStyle='#A32D2D'; ctx.textAlign='center'; ctx.textBaseline='bottom';
+          ctx.fillText(costsPct[i]+'%',bar.x,bar.y-4); ctx.restore();
+        });
+      }
+    }]
+  });
+}
+
+// ── ANALYTICS: SWITCH MONTH ───────────────────────────────────
+function switchMonth(i){
+  activeMonth = i;
+  renderAnTabs(); renderAnCards(); renderAnCostsBreakdown(); renderAnSummary(); renderAnShopTable();
+}
+
+function renderAnalytics(){
+  renderAnTabs(); renderAnCards(); renderAnCostsBreakdown(); renderAnSummary(); renderAnShopTable(); renderDynChart();
+}
+
 // ── LOAD ──────────────────────────────────────────────────────
-fetch('data.json')
+fetch('config.json')
+  .then(function(r){ return r.json(); })
+  .then(function(cfg){
+    CONFIG = cfg;
+    var n = CONFIG.shops.length;
+    var word = n===1?'1 магазин':n+' магазинов';
+    document.getElementById('headerSubtitle').textContent = 'Аналитика продаж · Allegro · '+word;
+    renderLegend('dailyLegend');
+    return fetch('data.json');
+  })
   .then(function(r){ return r.json(); })
   .then(function(d){
     if(!d.days && !d.months) return;
     DATA = d;
+    DATA.months.forEach(function(m){
+      if(!m.costs) m.costs={commission:0,delivery:0,ads:0,subscription:0,discount:0};
+    });
+    activeMonth = DATA.months.length > 0 ? DATA.months.length-1 : 0;
     renderGoal();
-    if(DATA.days && DATA.days.length > 0)    renderDailyChart();
-    if(DATA.months && DATA.months.length > 0) renderMonthlyChart();
+    if(DATA.days && DATA.days.length>0)    renderDailyChart();
+    if(DATA.months && DATA.months.length>0){ renderMonthlyChart(); renderAnalytics(); }
   })
-  .catch(function(){ console.warn('data.json не найден'); });
+  .catch(function(e){ console.warn('Ошибка загрузки:', e); });
 </script>
+<script src="sync.js"></script>
 </body>
 </html>

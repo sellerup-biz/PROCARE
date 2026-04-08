@@ -22,6 +22,14 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F0F7F4;color:#1a1a1
 .loading-spin{display:inline-block;width:28px;height:28px;border:3px solid #c8e6dc;border-top-color:#0F6E56;border-radius:50%;animation:spin .8s linear infinite;margin-bottom:12px}
 @keyframes spin{to{transform:rotate(360deg)}}
 
+/* ── SHOP TABS ── */
+.shop-bar{background:#fff;border:1px solid #c8e6dc;border-radius:12px;padding:10px 14px;margin-bottom:.75rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.shop-bar-label{font-size:11px;color:#888;font-weight:600;letter-spacing:.3px;white-space:nowrap}
+.shop-tab{font-size:12px;padding:5px 16px;border-radius:20px;border:1px solid #c8e6dc;background:#f5fdf9;color:#555;cursor:pointer;font-weight:500;transition:all .15s;white-space:nowrap;display:inline-flex;align-items:center;gap:5px}
+.shop-tab:hover:not(.shop-active){border-color:#0F6E56;color:#0F6E56;background:#edfaf5}
+.shop-tab.shop-active{background:#0F6E56;color:#fff;border-color:#0F6E56;font-weight:700}
+.shop-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+
 /* ── DATE BAR ── */
 .date-bar{background:#fff;border:1px solid #c8e6dc;border-radius:12px;padding:10px 14px;margin-bottom:1rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .dpreset{font-size:12px;padding:5px 14px;border-radius:20px;border:1px solid #c8e6dc;background:#f5fdf9;color:#555;cursor:pointer;font-weight:500;transition:all .15s;white-space:nowrap;display:inline-flex;align-items:center;gap:5px}
@@ -125,6 +133,16 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F0F7F4;color:#1a1a1
 .dl-dot{width:9px;height:9px;border-radius:2px;flex-shrink:0}
 .dl-v{font-weight:700;color:#1a1a1a;margin-left:2px}
 
+/* ── SHOP BREAKDOWN in sidebar ── */
+.sb-shop-sec{margin-top:14px;padding-top:12px;border-top:1px solid #e8f5ef}
+.sb-shop-title{font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px}
+.sb-shop-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f0faf6;font-size:12px}
+.sb-shop-row:last-child{border-bottom:none}
+.sb-shop-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.sb-shop-name{font-weight:600;color:#1a1a1a;min-width:80px}
+.sb-shop-val{color:#555;margin-left:auto;text-align:right;white-space:nowrap}
+.sb-shop-val span{display:block;font-size:10px;color:#aaa}
+
 /* ── FOOTER ── */
 .footer{text-align:center;font-size:11px;color:#aaa;margin-top:.5rem;letter-spacing:1px}
 </style>
@@ -135,12 +153,14 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F0F7F4;color:#1a1a1
   <div class="logo">PRO<br>CARE</div>
   <div>
     <h1>PROCARE · Юнит-экономика</h1>
-    <p id="hdrSub">Юнит-экономика · ProCare · Allegro PL · загрузка…</p>
+    <p id="hdrSub">Юнит-экономика · загрузка…</p>
   </div>
   <div class="hdr-nav">
+    <div id="syncArea" style="display:inline-flex;gap:4px;margin-right:8px"></div>
     <a href="index.html" class="btn-nav">← Главный</a>
-    <a href="analytics.html" class="btn-nav">Аналитика</a>
+    
     <a href="categories.html" class="btn-nav">Категории</a>
+    <a href="settings.html" class="btn-nav">Настройки</a>
   </div>
 </div>
 
@@ -158,14 +178,29 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F0F7F4;color:#1a1a1
 
 <script>
 // ── Constants ──────────────────────────────────────────────────
-const SHOP     = 'ProCare';
 const PER_PAGE = 50;
 const HIT_TOP_N = 10;
 const BADGE = {hit:'★ Хит', winning:'↑ Выигрывает', losing:'✕ Проигрышный', sleeping:'◎ Спящий', nocog:'◌ Без COG'};
 const BCLS  = {hit:'b-hit', winning:'b-winning', losing:'b-losing', sleeping:'b-sleeping', nocog:'b-nocog'};
 
+// ── Config & multi-shop state ─────────────────────────────────
+let CONFIG      = null;       // loaded from config.json
+let curShop     = 'all';      // 'all' or specific shop name
+let activeShops = [];         // derived from curShop
+
+function getActiveShops() {
+  if (!CONFIG) return [];
+  return curShop === 'all'
+    ? CONFIG.shops.map(s => s.name)
+    : [curShop];
+}
+
+function getShopConfig(name) {
+  return CONFIG ? CONFIG.shops.find(s => s.name === name) : null;
+}
+
 // ── App state ──────────────────────────────────────────────────
-let PRODUCTS    = [];       // [{ean, name, category, offers: {ProCare: offerId}}]
+let PRODUCTS    = [];       // [{ean, name, category, offers: {Shop1: id, Shop2: id}}]
 let offerToKey  = {};       // offerId → product key
 let keyToIdx    = {};       // product key → index in PRODUCTS[]
 
@@ -219,8 +254,13 @@ function monthsInRange(from, to) {
 }
 function productKey(p) {
   if (p.ean) return 'ean:' + p.ean;
-  const oid = p.offers && p.offers[SHOP];
-  return 'offer:' + (oid || Math.random());
+  // Use first available offer ID across all shops
+  if (p.offers) {
+    for (const shopName of (CONFIG ? CONFIG.shops.map(s => s.name) : [])) {
+      if (p.offers[shopName]) return 'offer:' + p.offers[shopName];
+    }
+  }
+  return 'offer:' + Math.random();
 }
 function getPeriodDays() {
   const from = new Date(dateFrom), to = new Date(dateTo);
@@ -228,6 +268,13 @@ function getPeriodDays() {
 }
 
 // ── Data loading ───────────────────────────────────────────────
+async function loadConfig() {
+  const resp = await fetch('config.json?_=' + Date.now());
+  if (!resp.ok) throw new Error('config.json не найден');
+  CONFIG = await resp.json();
+  activeShops = getActiveShops();
+}
+
 async function loadProducts() {
   const resp = await fetch('products.json?_=' + Date.now());
   if (!resp.ok) throw new Error('products.json не найден');
@@ -239,8 +286,9 @@ async function loadProducts() {
   PRODUCTS.forEach((p, i) => {
     const k = productKey(p);
     keyToIdx[k] = i;
-    if (p.offers && p.offers[SHOP]) {
-      offerToKey[p.offers[SHOP]] = k;
+    for (const shopName of CONFIG.shops.map(s => s.name)) {
+      const oid = p.offers && p.offers[shopName];
+      if (oid) offerToKey[oid] = k;
     }
   });
   return data;
@@ -274,18 +322,21 @@ function buildAggCache(from, to) {
     const md = monthData[ym];
     if (!md) continue;
     const dayEntry = md.days && md.days[date];
-    if (!dayEntry || !dayEntry[SHOP]) continue;
+    if (!dayEntry) continue;
 
-    for (const [oid, vals] of Object.entries(dayEntry[SHOP])) {
-      const key = offerToKey[oid];
-      if (!key) continue;
-      if (!agg[key]) agg[key] = {sales: 0, revenue: 0, commission: 0, ads: 0, promo: 0};
-      const a = agg[key];
-      a.sales      += vals[0] || 0;
-      a.revenue    += vals[1] || 0;
-      a.commission += vals[2] || 0;
-      a.ads        += vals[3] || 0;
-      a.promo      += vals[4] || 0;
+    for (const shopName of activeShops) {
+      if (!dayEntry[shopName]) continue;
+      for (const [oid, vals] of Object.entries(dayEntry[shopName])) {
+        const key = offerToKey[oid];
+        if (!key) continue;
+        if (!agg[key]) agg[key] = {sales: 0, revenue: 0, commission: 0, ads: 0, promo: 0};
+        const a = agg[key];
+        a.sales      += vals[0] || 0;
+        a.revenue    += vals[1] || 0;
+        a.commission += vals[2] || 0;
+        a.ads        += vals[3] || 0;
+        a.promo      += vals[4] || 0;
+      }
     }
   }
 
@@ -299,6 +350,36 @@ function buildAggCache(from, to) {
   aggCache = agg;
 }
 
+// Build per-shop aggregation for a single product key (used in sidebar)
+function buildPerShopAgg(key, from, to) {
+  const result = {};
+  for (const shopCfg of CONFIG.shops) {
+    const shopName = shopCfg.name;
+    const a = {sales: 0, revenue: 0, commission: 0, ads: 0, promo: 0};
+    for (const date of datesInRange(from, to)) {
+      const ym = date.slice(0, 7);
+      const md = monthData[ym];
+      if (!md) continue;
+      const dayEntry = md.days && md.days[date];
+      if (!dayEntry || !dayEntry[shopName]) continue;
+      for (const [oid, vals] of Object.entries(dayEntry[shopName])) {
+        if (offerToKey[oid] !== key) continue;
+        a.sales      += vals[0] || 0;
+        a.revenue    += vals[1] || 0;
+        a.commission += vals[2] || 0;
+        a.ads        += vals[3] || 0;
+        a.promo      += vals[4] || 0;
+      }
+    }
+    a.revenue    = Math.round(a.revenue    * 100) / 100;
+    a.commission = Math.round(a.commission * 100) / 100;
+    a.ads        = Math.round(a.ads        * 100) / 100;
+    a.promo      = Math.round(a.promo      * 100) / 100;
+    if (a.sales > 0 || a.revenue > 0) result[shopName] = a;
+  }
+  return result;
+}
+
 // ── Per-product data getters ───────────────────────────────────
 function getProductData(p) {
   const key = productKey(p);
@@ -309,7 +390,19 @@ function getProductData(p) {
 
 function getCog(p) {
   // Returns COG per unit (PLN) or null if not set
-  return (p && p.cog && p.cog[SHOP] != null) ? p.cog[SHOP] : null;
+  if (!p || !p.cog) return null;
+
+  if (curShop === 'all') {
+    // Average of all non-null COGs across shops, or first available
+    const vals = [];
+    for (const shopName of CONFIG.shops.map(s => s.name)) {
+      if (p.cog[shopName] != null) vals.push(p.cog[shopName]);
+    }
+    if (vals.length === 0) return null;
+    return vals.reduce((s, v) => s + v, 0) / vals.length;
+  }
+
+  return p.cog[curShop] != null ? p.cog[curShop] : null;
 }
 function hasCog(p) {
   return getCog(p) !== null;
@@ -322,6 +415,12 @@ function margin(d, p) {
 }
 function marginPct(d, p) {
   return (d && d.revenue > 0) ? margin(d, p) / d.revenue * 100 : 0;
+}
+
+// Get COG for a specific shop (used in sidebar per-shop breakdown)
+function getCogForShop(p, shopName) {
+  if (!p || !p.cog) return null;
+  return p.cog[shopName] != null ? p.cog[shopName] : null;
 }
 
 // ── Status calculation ─────────────────────────────────────────
@@ -362,9 +461,10 @@ function getStatus(p) {
   return (statusCache && statusCache[productKey(p)]) || 'sleeping';
 }
 
-// ── Refresh on period change ───────────────────────────────────
+// ── Refresh on period/shop change ─────────────────────────────
 async function refresh() {
   if (!dataReady) return;
+  activeShops = getActiveShops();
   aggCache    = null;
   statusCache = null;
   showLoadingPill(true);
@@ -432,9 +532,25 @@ function sortedProducts(arr) {
 
 // ── Render all ─────────────────────────────────────────────────
 function renderAll() {
+  renderShopBar();
   renderDateBar();
   renderFilterBar();
   renderTable();
+}
+
+// ── Shop tabs bar ─────────────────────────────────────────────
+function renderShopBar() {
+  const el = document.getElementById('shopBar');
+  if (!el) return;
+
+  let html = '<span class="shop-bar-label">МАГАЗИН:</span>';
+  html += `<button class="shop-tab${curShop === 'all' ? ' shop-active' : ''}" onclick="setShop('all')">Все</button>`;
+  for (const shop of CONFIG.shops) {
+    const isActive = curShop === shop.name;
+    html += `<button class="shop-tab${isActive ? ' shop-active' : ''}" onclick="setShop('${escHtml(shop.name)}')" style="${isActive ? 'background:' + shop.color + ';border-color:' + shop.color : ''}">`;
+    html += `<span class="shop-dot" style="background:${shop.color}"></span>${escHtml(shop.name)}</button>`;
+  }
+  el.innerHTML = html;
 }
 
 // ── Date bar ───────────────────────────────────────────────────
@@ -524,8 +640,10 @@ function renderTable() {
     const d   = getProductData(p);
     const st  = getStatus(p);
 
-    const oid = p.offers && p.offers[SHOP];
-    const metaBase = `ID: <span class="id-val">…${oid ? oid.slice(-5) : '—'}</span> · EAN: <span class="id-val">${escHtml(p.ean || '—')}</span>`;
+    // Show offer IDs for active shops
+    const offerIds = activeShops.map(s => p.offers && p.offers[s]).filter(Boolean);
+    const oidDisplay = offerIds.length > 0 ? '…' + offerIds[0].slice(-5) : '—';
+    const metaBase = `ID: <span class="id-val">${oidDisplay}</span> · EAN: <span class="id-val">${escHtml(p.ean || '—')}</span>`;
     const catTag = p.category ? ` · <span style="color:#0F6E56;font-weight:600">${escHtml(p.category)}</span>` : '';
 
     if (!d) {
@@ -600,10 +718,17 @@ function openSidebar(key) {
   const m  = d ? margin(d, p)    : 0;
   const mp = d ? marginPct(d, p) : 0;
 
-  const oid = p.offers && p.offers[SHOP];
-  const idsHtml = `Offer ID: <span class="id-val">${escHtml(oid || '—')}</span>`;
+  // Show all offer IDs across shops
+  let idsHtml = '';
+  for (const shop of CONFIG.shops) {
+    const oid = p.offers && p.offers[shop.name];
+    if (oid) {
+      idsHtml += `<span style="color:${shop.color};font-weight:600">${escHtml(shop.name)}</span> ID: <span class="id-val">${escHtml(oid)}</span> · `;
+    }
+  }
+  if (!idsHtml) idsHtml = 'Offer ID: <span class="id-val">—</span> · ';
 
-  let metricsHtml = '', distHtml = '';
+  let metricsHtml = '', distHtml = '', shopBreakdownHtml = '';
 
   if (d) {
     const cogUnit  = getCog(p);
@@ -684,6 +809,36 @@ function openSidebar(key) {
         <div class="dl"><div class="dl-dot" style="background:#0F6E56"></div>Маржа<span class="dl-v">${mgPct.toFixed(0)}%</span></div>
       </div>
     </div>`;
+
+    // Per-shop breakdown (only when multiple shops exist)
+    if (CONFIG.shops.length > 1) {
+      const perShop = buildPerShopAgg(key, dateFrom, dateTo);
+      const shopNames = CONFIG.shops.map(s => s.name).filter(s => perShop[s]);
+      if (shopNames.length > 0) {
+        let shopRows = '';
+        for (const sn of shopNames) {
+          const sc = getShopConfig(sn);
+          const sd = perShop[sn];
+          const sCog = getCogForShop(p, sn);
+          const sCogTotal = (sCog !== null && sd.sales > 0) ? sCog * sd.sales : 0;
+          const sMargin = sd.revenue - sd.commission - sd.ads - sd.promo - sCogTotal;
+          const sMarginPct = sd.revenue > 0 ? (sMargin / sd.revenue * 100).toFixed(1) : '0.0';
+          shopRows += `
+            <div class="sb-shop-row">
+              <span class="sb-shop-dot" style="background:${sc ? sc.color : '#888'}"></span>
+              <span class="sb-shop-name">${escHtml(sn)}</span>
+              <span class="sb-shop-val">${sd.sales} шт.<span>продажи</span></span>
+              <span class="sb-shop-val">${zl(sd.revenue)}<span>доход</span></span>
+              <span class="sb-shop-val" style="color:${sMargin >= 0 ? '#0F6E56' : '#A32D2D'};font-weight:600">${sMargin >= 0 ? '' : '−'}${zl(Math.abs(sMargin))}<span>${sMarginPct}%</span></span>
+            </div>`;
+        }
+        shopBreakdownHtml = `
+          <div class="sb-shop-sec">
+            <div class="sb-shop-title">По магазинам</div>
+            ${shopRows}
+          </div>`;
+      }
+    }
   } else {
     metricsHtml = `<div style="padding:20px;text-align:center;color:#aaa;font-size:13px">Нет данных за выбранный период</div>`;
   }
@@ -693,7 +848,7 @@ function openSidebar(key) {
       <button class="sb-close" onclick="closeSidebar()">✕</button>
       <div class="pr-badge ${BCLS[st]}" style="margin-top:4px">${BADGE[st]}</div>
       <div class="sb-name">${escHtml(p.name)}</div>
-      <div class="sb-ids">${idsHtml} ·
+      <div class="sb-ids">${idsHtml}
         EAN: <span class="id-val">${escHtml(p.ean || '—')}</span>
         ${p.category ? ` · <span style="color:#0F6E56;font-weight:600">${escHtml(p.category)}</span>` : ''}
       </div>
@@ -701,6 +856,7 @@ function openSidebar(key) {
     <div class="sb-body">
       ${metricsHtml}
       ${distHtml}
+      ${shopBreakdownHtml}
     </div>`;
 
   document.getElementById('sidebar').classList.add('open');
@@ -719,6 +875,11 @@ function closeSidebar() {
 function setFilter(f) { curFilter = f; curPage = 1; renderAll(); }
 function setCat(c)    { curCat = c;    curPage = 1; renderAll(); }
 function goPage(n)    { curPage = n;   renderAll(); }
+
+function setShop(s) {
+  curShop = s;
+  refresh();
+}
 
 function setSort(col) {
   if (sortCol === col) { sortDir = sortDir === 'desc' ? 'asc' : 'desc'; }
@@ -754,15 +915,16 @@ function setCustomDate(which, val) {
 function downloadCSV() {
   const products = sortedProducts(filteredProducts());
 
-  const filterLabel = {all: 'Все', hit: 'Хиты', winning: 'Выигрывает', losing: 'Проигрышные', sleeping: 'Спящие'}[curFilter] || curFilter;
+  const filterLabel = {all: 'Все', hit: 'Хиты', winning: 'Выигрывает', losing: 'Проигрышные', sleeping: 'Спящие', nocog: 'БезCOG'}[curFilter] || curFilter;
+  const shopLabel = curShop === 'all' ? 'Все' : curShop;
   const periodLabel = datePreset === 'all' ? 'все_время' : datePreset === 'last30' ? 'посл_30дн' : `${dateFrom}_${dateTo}`;
-  const filename = `unit_economy_ProCare_${filterLabel}_${periodLabel}.csv`;
+  const filename = `unit_economy_${shopLabel}_${filterLabel}_${periodLabel}.csv`;
 
-  const headers = ['Название', 'EAN', 'Категория', 'Offer ID', 'Статус',
+  const headers = ['Название', 'EAN', 'Категория', 'Магазин(ы)', 'Offer ID(s)', 'Статус',
     'Продажи (шт)', 'Доход (zł)', 'Комиссия (zł)', 'Реклама (zł)', 'Промо (zł)',
     'COG за шт (zł)', 'COG итого (zł)', 'Маржа (zł)', 'Маржа (%)'];
 
-  const statusLabels = {hit: 'Хит', winning: 'Выигрывает', losing: 'Проигрышный', sleeping: 'Спящий'};
+  const statusLabels = {hit: 'Хит', winning: 'Выигрывает', losing: 'Проигрышный', sleeping: 'Спящий', nocog: 'Без COG'};
   const csvCell = v => {
     const s = String(v == null ? '' : v).replace(/"/g, '""');
     return /[,"\n\r]/.test(s) ? `"${s}"` : s;
@@ -772,9 +934,10 @@ function downloadCSV() {
   for (const p of products) {
     const d  = getProductData(p);
     const st = getStatus(p);
-    const oid = (p.offers && p.offers[SHOP]) || '';
+    const shopNames = activeShops.filter(s => p.offers && p.offers[s]).join('; ');
+    const oids = activeShops.map(s => p.offers && p.offers[s]).filter(Boolean).join('; ');
 
-    const row = [p.name || '', p.ean || '', p.category || '', oid, statusLabels[st] || st];
+    const row = [p.name || '', p.ean || '', p.category || '', shopNames, oids, statusLabels[st] || st];
     const cogUnit = getCog(p);
     if (d) {
       const cogTotal = (cogUnit !== null && d.sales > 0) ? Math.round(cogUnit * d.sales * 100) / 100 : '';
@@ -798,6 +961,9 @@ function downloadCSV() {
 // ── Bootstrap ──────────────────────────────────────────────────
 async function init() {
   try {
+    await loadConfig();
+    activeShops = getActiveShops();
+
     const catalog = await loadProducts();
 
     DATE_MIN = catalog.date_min || '2026-01-01';
@@ -805,7 +971,10 @@ async function init() {
     dateFrom = DATE_MIN;
     dateTo   = DATE_MAX;
 
+    const shopNames = CONFIG.shops.map(s => s.name).join(' + ');
+
     document.getElementById('mainContent').innerHTML = `
+      <div class="shop-bar"   id="shopBar"></div>
       <div class="date-bar"   id="dateBar"></div>
       <div class="filter-bar" id="filterBar"></div>
       <div class="tbl-wrap"   id="tblWrap">
@@ -814,7 +983,7 @@ async function init() {
       <div class="pagination" id="pagination"></div>`;
 
     document.getElementById('hdrSub').textContent =
-      `Юнит-экономика · ProCare · ${PRODUCTS.length} товаров · обновлено ${catalog.updated || '—'}`;
+      `Юнит-экономика · ${shopNames} · ${PRODUCTS.length} товаров · обновлено ${catalog.updated || '—'}`;
     document.getElementById('footer').textContent =
       `PROCARE · Юнит-экономика · ${PRODUCTS.length} товаров`;
 
@@ -830,7 +999,7 @@ async function init() {
       <div style="padding:48px;text-align:center;font-size:13px">
         <div style="font-size:28px;margin-bottom:12px">⚠</div>
         <strong style="color:#A32D2D">Ошибка загрузки данных</strong><br><br>
-        <span style="color:#888">Убедитесь что <code>products.json</code> существует.<br>
+        <span style="color:#888">Убедитесь что <code>config.json</code> и <code>products.json</code> существуют.<br>
         Запустите <code>fetch_offers.yml</code> для загрузки каталога.</span><br><br>
         <code style="font-size:10px;color:#aaa">${escHtml(e.message)}</code>
       </div>`;
@@ -840,5 +1009,6 @@ async function init() {
 
 init();
 </script>
+<script src="sync.js"></script>
 </body>
 </html>

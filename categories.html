@@ -23,6 +23,13 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F0F7F4;color:#1a1a1
 .loading-spin{display:inline-block;width:30px;height:30px;border:3px solid #c8e6dc;border-top-color:#0F6E56;border-radius:50%;animation:spin .8s linear infinite;margin-bottom:14px}
 @keyframes spin{to{transform:rotate(360deg)}}
 
+/* SHOP TABS */
+.shop-tabs{background:#fff;border:1px solid #c8e6dc;border-radius:12px;padding:8px 14px;margin-bottom:1rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.shop-tabs .tab{font-size:12px;padding:6px 16px;border-radius:20px;border:1px solid #c8e6dc;background:#f5fdf9;color:#666;cursor:pointer;font-weight:500;transition:all .15s;white-space:nowrap;font-family:inherit}
+.shop-tabs .tab:hover:not(.active){border-color:#0F6E56;color:#0F6E56;background:#edfaf5}
+.shop-tabs .tab.active{background:#0F6E56;color:#fff;border-color:#0F6E56;font-weight:700}
+.shop-tabs-label{font-size:11px;color:#888;font-weight:600;letter-spacing:.3px;white-space:nowrap}
+
 /* DATE BAR */
 .date-bar{background:#fff;border:1px solid #c8e6dc;border-radius:12px;padding:10px 14px;margin-bottom:1rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .dpreset{font-size:12px;padding:5px 14px;border-radius:20px;border:1px solid #c8e6dc;background:#f5fdf9;color:#666;cursor:pointer;font-weight:500;transition:all .15s;white-space:nowrap}
@@ -94,12 +101,14 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F0F7F4;color:#1a1a1
   <div class="logo">PRO<br>CARE</div>
   <div>
     <h1>PROCARE · Категории</h1>
-    <p id="hdrSub">Продажи по категориям · ProCare · Allegro PL</p>
+    <p id="hdrSub">Продажи по категориям · Allegro PL</p>
   </div>
   <div class="hdr-nav">
+    <div id="syncArea" style="display:inline-flex;gap:4px;margin-right:8px"></div>
     <a href="index.html" class="btn-nav">← Главный</a>
-    <a href="analytics.html" class="btn-nav">Аналитика</a>
+    
     <a href="unit_economy.html" class="btn-nav">Юнит-экономика</a>
+    <a href="settings.html" class="btn-nav">Настройки</a>
   </div>
 </div>
 
@@ -114,7 +123,9 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F0F7F4;color:#1a1a1
 
 <script>
 // ── Constants ─────────────────────────────────────────────────
-const SHOP = 'ProCare';
+let CONFIG = null;
+let activeShops = [];   // list of shop names currently selected
+let selectedShop = 'all';
 let topN = 15;
 
 // ── App state ─────────────────────────────────────────────────
@@ -159,11 +170,26 @@ function monthsInRange(from, to) {
 }
 function productKey(p) {
   if (p.ean) return 'ean:' + p.ean;
-  const oid = p.offers && p.offers[SHOP];
-  return 'offer:' + (oid || Math.random());
+  // Use the first available offer ID across all shops
+  if (p.offers) {
+    for (const shopName of CONFIG.shops.map(s => s.name)) {
+      const oid = p.offers[shopName];
+      if (oid) return 'offer:' + oid;
+    }
+  }
+  return 'offer:' + Math.random();
 }
 function escHtml(s) {
   return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// ── Config loading ───────────────────────────────────────────
+async function loadConfig() {
+  const resp = await fetch('config.json?_=' + Date.now());
+  if (!resp.ok) throw new Error('config.json not found');
+  CONFIG = await resp.json();
+  activeShops = CONFIG.shops.map(s => s.name);
+  return CONFIG;
 }
 
 // ── Data loading ──────────────────────────────────────────────
@@ -174,8 +200,10 @@ async function loadProducts() {
   PRODUCTS = data.products || [];
   offerToKey = {};
   PRODUCTS.forEach(p => {
-    const oid = p.offers && p.offers[SHOP];
-    if (oid) offerToKey[oid] = productKey(p);
+    for (const shopName of CONFIG.shops.map(s => s.name)) {
+      const oid = p.offers && p.offers[shopName];
+      if (oid) offerToKey[oid] = productKey(p);
+    }
   });
   if (data.date_min) DATE_MIN = data.date_min;
   if (data.date_max) DATE_MAX = data.date_max;
@@ -201,6 +229,21 @@ async function ensureMonthsLoaded(from, to) {
   await Promise.all(yms.map(ym => loadMonthData(ym)));
 }
 
+// ── Shop selection ───────────────────────────────────────────
+function setShop(shop) {
+  selectedShop = shop;
+  if (shop === 'all') {
+    activeShops = CONFIG.shops.map(s => s.name);
+  } else {
+    activeShops = [shop];
+  }
+  // Rebuild aggregation and rerender
+  aggCache = null;
+  buildAggCache(dateFrom, dateTo);
+  rerender();
+  renderShopTabs();
+}
+
 // ── Aggregation ───────────────────────────────────────────────
 function buildAggCache(from, to) {
   const agg = {};
@@ -209,16 +252,19 @@ function buildAggCache(from, to) {
     const md = monthData[ym];
     if (!md) continue;
     const dayEntry = md.days && md.days[date];
-    if (!dayEntry || !dayEntry[SHOP]) continue;
-    for (const [oid, vals] of Object.entries(dayEntry[SHOP])) {
-      const key = offerToKey[oid];
-      if (!key) continue;
-      if (!agg[key]) agg[key] = { sales: 0, revenue: 0, commission: 0, ads: 0, promo: 0 };
-      agg[key].sales      += vals[0] || 0;
-      agg[key].revenue    += vals[1] || 0;
-      agg[key].commission += vals[2] || 0;
-      agg[key].ads        += vals[3] || 0;
-      agg[key].promo      += vals[4] || 0;
+    if (!dayEntry) continue;
+    for (const shopName of activeShops) {
+      if (!dayEntry[shopName]) continue;
+      for (const [oid, vals] of Object.entries(dayEntry[shopName])) {
+        const key = offerToKey[oid];
+        if (!key) continue;
+        if (!agg[key]) agg[key] = { sales: 0, revenue: 0, commission: 0, ads: 0, promo: 0 };
+        agg[key].sales      += vals[0] || 0;
+        agg[key].revenue    += vals[1] || 0;
+        agg[key].commission += vals[2] || 0;
+        agg[key].ads        += vals[3] || 0;
+        agg[key].promo      += vals[4] || 0;
+      }
     }
   }
   aggCache = agg;
@@ -576,13 +622,27 @@ function renderHeaderStats(cats) {
   const total      = cats.reduce((s, c) => s + c.revenue, 0);
   const totalSales = cats.reduce((s, c) => s + c.sales,   0);
   const days       = getPeriodDays();
+  const shopLabel  = selectedShop === 'all' ? 'Все магазины' : selectedShop;
   const parts = [];
   if (cats.length > 0) parts.push(`${cats.length} кат.`);
   if (total > 0)        parts.push(zl(total));
   if (totalSales > 0)   parts.push(`${totalSales.toLocaleString('ru-RU')} шт.`);
   parts.push(`${days} дн.`);
   document.getElementById('hdrSub').textContent =
-    'Продажи по категориям · ProCare · ' + parts.join(' · ');
+    'Продажи по категориям · ' + shopLabel + ' · ' + parts.join(' · ');
+}
+
+// ── Shop tabs render ─────────────────────────────────────────
+function renderShopTabs() {
+  const container = document.getElementById('shopTabs');
+  if (!container) return;
+  let html = `<span class="shop-tabs-label">МАГАЗИН:</span>`;
+  html += `<button class="tab${selectedShop === 'all' ? ' active' : ''}" onclick="setShop('all')">Все</button>`;
+  for (const shop of CONFIG.shops) {
+    const isActive = selectedShop === shop.name;
+    html += `<button class="tab${isActive ? ' active' : ''}" onclick="setShop('${escHtml(shop.name)}')">${escHtml(shop.name)}</button>`;
+  }
+  container.innerHTML = html;
 }
 
 // ── Date bar render ───────────────────────────────────────────
@@ -620,6 +680,7 @@ function renderDateBar() {
 // ── Full UI skeleton ──────────────────────────────────────────
 function renderSkeleton() {
   document.getElementById('mainContent').innerHTML = `
+    <div class="shop-tabs" id="shopTabs"></div>
     <div class="date-bar" id="dateBar"></div>
     <div class="chart-card">
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px">
@@ -660,6 +721,7 @@ function renderSkeleton() {
 // ── Init ──────────────────────────────────────────────────────
 async function init() {
   try {
+    await loadConfig();
     const data = await loadProducts();
     dateFrom = DATE_MIN;
     dateTo   = DATE_MAX;
@@ -670,6 +732,7 @@ async function init() {
     dataReady = true;
 
     renderSkeleton();
+    renderShopTabs();
     renderDateBar();
     buildAggCache(dateFrom, dateTo);
     rerender();
@@ -678,6 +741,9 @@ async function init() {
     if (e.message && e.message.includes('products.json not found')) {
       document.getElementById('mainContent').innerHTML =
         `<div class="error-msg">⚠ products.json не найден. Запусти fetch_offers.yml для загрузки данных.</div>`;
+    } else if (e.message && e.message.includes('config.json not found')) {
+      document.getElementById('mainContent').innerHTML =
+        `<div class="error-msg">⚠ config.json не найден.</div>`;
     } else {
       document.getElementById('mainContent').innerHTML =
         `<div class="error-msg">Ошибка загрузки данных: ${escHtml(e.message)}</div>`;
@@ -687,5 +753,6 @@ async function init() {
 
 init();
 </script>
+<script src="sync.js"></script>
 </body>
 </html>
