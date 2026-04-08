@@ -77,6 +77,33 @@ input:focus{border-color:#0F6E56}
   </div>
 </div>
 
+<!-- ══════════ УПРАВЛЕНИЕ ДАННЫМИ ══════════ -->
+<div class="section-divider"><span>Управление данными</span></div>
+
+<div class="card">
+  <div class="card-title">⟳ Синхронизация</div>
+  <div class="card-desc">
+    Запускает GitHub Actions <b>fetch.yml</b> — ежедневный сбор данных с Allegro API.<br>
+    Собирает <b>вчера</b> (полный день) и <b>сегодня</b> (частичный), обновляет <code style="font-size:11px;background:#f0f7f4;padding:1px 5px;border-radius:3px">data.json</code> в репозитории.<br>
+    Автоматически запускается каждую ночь в 3:00 UTC. Кнопка для ручного запуска в любой момент.
+  </div>
+  <button class="btn btn-primary" style="background:#185FA5;border-color:#185FA5" onclick="triggerSync()">⟳ Синхронизация</button>
+  <div id="syncStatus" style="font-size:11px;color:#888;margin-top:8px;display:none"></div>
+</div>
+
+<div class="card">
+  <div class="card-title">⬆ Загрузить цены · Обновить COG</div>
+  <div class="card-desc">
+    <b>Шаг 1:</b> Загрузи файл с ценами закупки (<code style="font-size:11px;background:#f0f7f4;padding:1px 5px;border-radius:3px">priceVAT.xls</code>) в репозиторий.<br>
+    <b>Шаг 2:</b> Нажми «Обновить COG» — запустится workflow <b>upload_cog.yml</b>, который разберёт файл и обновит себестоимость (COG) в <code style="font-size:11px;background:#f0f7f4;padding:1px 5px;border-radius:3px">products.json</code>.
+  </div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap">
+    <button class="btn btn-primary" style="background:#BA7517;border-color:#BA7517" onclick="uploadXLS()">⬆ Загрузить цены</button>
+    <button class="btn btn-primary" onclick="triggerUpdateCOG()">⟳ Обновить COG</button>
+  </div>
+  <div id="cogStatus" style="font-size:11px;color:#888;margin-top:8px;display:none"></div>
+</div>
+
 <!-- ══════════ АВТОРИЗАЦИЯ ══════════ -->
 <div class="section-divider"><span>Авторизация Allegro</span></div>
 
@@ -374,6 +401,61 @@ async function applyAds(){
   log('', 'info');
   log('✓ Готово! Данные обновлены в GitHub. GitHub Pages обновится через ~30-60 сек.', 'ok');
   document.getElementById('applyBtn').disabled = false;
+}
+
+// ── SYNC / COG ACTIONS ───────────────────────────────────────
+function showStatus(elId, type, msg) {
+  var el = document.getElementById(elId);
+  if(!el) return;
+  var colors = {ok:'#0F6E56', err:'#A32D2D', info:'#185FA5'};
+  el.style.color = colors[type]||'#888';
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function triggerWorkflow(workflowFile, statusElId) {
+  var token = document.getElementById('gh_token').value.trim();
+  if(!token){ alert('Введи GitHub Token выше'); return; }
+  showStatus(statusElId, 'info', '⏳ Запускаю workflow...');
+  fetch('https://api.github.com/repos/'+GH_REPO+'/actions/workflows/'+workflowFile+'/dispatches', {
+    method: 'POST',
+    headers: {'Authorization':'token '+token,'Content-Type':'application/json'},
+    body: JSON.stringify({ref:'main'})
+  }).then(function(r){
+    if(r.status===204) showStatus(statusElId,'ok','✓ Запущен! Данные обновятся через несколько минут.');
+    else if(r.status===401||r.status===403) showStatus(statusElId,'err','✗ Неверный GitHub Token');
+    else showStatus(statusElId,'err','✗ Ошибка HTTP '+r.status);
+  }).catch(function(e){ showStatus(statusElId,'err','✗ Ошибка сети: '+e.message); });
+}
+
+function triggerSync()      { triggerWorkflow('fetch.yml',      'syncStatus'); }
+function triggerUpdateCOG() { triggerWorkflow('upload_cog.yml', 'cogStatus'); }
+
+function uploadXLS() {
+  var token = document.getElementById('gh_token').value.trim();
+  if(!token){ alert('Введи GitHub Token выше'); return; }
+  var input = document.createElement('input');
+  input.type = 'file'; input.accept = '.xls,.xlsx,.csv';
+  input.onchange = function(){
+    var file = input.files[0]; if(!file) return;
+    showStatus('cogStatus','info','⏳ Загружаю '+file.name+'...');
+    var reader = new FileReader();
+    reader.onload = function(){
+      var base64 = btoa(new Uint8Array(reader.result).reduce(function(d,b){return d+String.fromCharCode(b);},''));
+      var apiUrl = 'https://api.github.com/repos/'+GH_REPO+'/contents/priceVAT.xls';
+      var headers = {'Authorization':'token '+token,'Content-Type':'application/json'};
+      fetch(apiUrl,{headers:headers}).then(function(r){return r.ok?r.json():null;}).then(function(ex){
+        var body = {message:'Upload priceVAT.xls '+new Date().toISOString().slice(0,10), content:base64};
+        if(ex&&ex.sha) body.sha = ex.sha;
+        return fetch(apiUrl,{method:'PUT',headers:headers,body:JSON.stringify(body)});
+      }).then(function(r){
+        if(r.ok) showStatus('cogStatus','ok','✓ Файл загружен! Теперь нажми «Обновить COG».');
+        else r.text().then(function(t){showStatus('cogStatus','err','✗ Ошибка: '+t.slice(0,100));});
+      }).catch(function(e){showStatus('cogStatus','err','✗ '+e.message);});
+    };
+    reader.readAsArrayBuffer(file);
+  };
+  input.click();
 }
 </script>
 </body>
