@@ -1,13 +1,13 @@
 """
-PROCARE — сбор данных по офферам (юнит-экономика)
+PROCARE — сбор данных по офферам (юнит-экономика), multi-shop
 
 Outputs:
-  products.json          — каталог офферов (id, name, category)
-  unit_data/YYYY-MM.json — ежемесячные файлы с дневными данными по офферам
+  products.json          — каталог офферов (id, name, category, offers per shop, cog per shop)
+  unit_data/YYYY-MM.json — ежемесячные файлы с дневными данными по офферам (per shop)
 
 Запускать вручную или через fetch_offers.yml.
 Переменные окружения:
-  CLIENT_ID_PROCARE, CLIENT_SECRET_PROCARE, REFRESH_TOKEN_PROCARE
+  CLIENT_ID_<PREFIX>, CLIENT_SECRET_<PREFIX>, REFRESH_TOKEN_<PREFIX>  (per shop)
   GH_TOKEN      — для ротации токена
   OFFERS_DAYS   — глубина истории (дефолт 90)
 """
@@ -17,20 +17,25 @@ from datetime import datetime, timedelta, timezone
 from collections import defaultdict
 from nacl import encoding, public
 
-# ── Константы ──────────────────────────────────────────────────────────────────
+# ── Конфигурация из config.json ───────────────────────────────────────────────
 
-REDIRECT_URI = "https://sellerup-biz.github.io/PROCARE/callback.html"
-GH_REPO      = "sellerup-biz/PROCARE"
-SHOP_NAME    = "ProCare"
+with open(os.path.join(os.path.dirname(__file__) or ".", "config.json"), encoding="utf-8") as _f:
+    CONFIG = json.load(_f)
+REDIRECT_URI = CONFIG["redirect_uri"]
+GH_REPO      = CONFIG["repo"]
 GH_TOKEN     = os.environ.get("GH_TOKEN", "")
 OFFERS_DAYS  = int(os.environ.get("OFFERS_DAYS", "90"))
 
-SHOP = {
-    "client_id":     os.environ.get("CLIENT_ID_PROCARE", ""),
-    "client_secret": os.environ.get("CLIENT_SECRET_PROCARE", ""),
-    "refresh_token": os.environ.get("REFRESH_TOKEN_PROCARE", ""),
-    "secret_name":   "REFRESH_TOKEN_PROCARE",
-}
+SHOPS = {}
+for s in CONFIG["shops"]:
+    pfx = s["env_prefix"]
+    SHOPS[s["name"]] = {
+        "client_id":     os.environ.get(f"CLIENT_ID_{pfx}", ""),
+        "client_secret": os.environ.get(f"CLIENT_SECRET_{pfx}", ""),
+        "refresh_token": os.environ.get(f"REFRESH_TOKEN_{pfx}", ""),
+        "secret_name":   f"REFRESH_TOKEN_{pfx}",
+    }
+SHOP_NAMES = [s["name"] for s in CONFIG["shops"]]
 
 # Биллинг-маппинг для юнит-экономики
 UNIT_BILLING_MAP = {
@@ -128,6 +133,40 @@ def get_unit_billing_cat(tid, tname=""):
     return "IGNORE"
 
 
+# ── НБП — курсы валют ────────────────────────────────────────────────────────
+
+_nbp_cache = {}  # "YYYY-MM-DD:CUR" -> rate
+
+def get_nbp_rate(date_str, currency):
+    """Получить курс CZK/HUF/EUR к PLN на дату (или ближайший доступный)."""
+    cur = currency.upper()
+    if cur == "PLN":
+        return 1.0
+    key = f"{date_str}:{cur}"
+    if key in _nbp_cache:
+        return _nbp_cache[key]
+    # Try exact date first, then ±3 days back
+    from datetime import datetime, timedelta
+    dt = datetime.strptime(date_str, "%Y-%m-%d")
+    for delta in range(0, 5):
+        d = (dt - timedelta(days=delta)).strftime("%Y-%m-%d")
+        try:
+            url = f"https://api.nbp.pl/api/exchangerates/rates/a/{cur.lower()}/{d}/?format=json"
+            r = requests.get(url, timeout=10)
+            if r.status_code == 200:
+                rate = r.json()["rates"][0]["mid"]
+                _nbp_cache[key] = rate
+                return rate
+        except Exception:
+            pass
+    # Fallback hardcoded rates
+    fallback = {"CZK": 0.16, "HUF": 0.01, "EUR": 4.25}
+    rate = fallback.get(cur, 1.0)
+    print(f"  WARNING: NBP rate not found for {cur} {date_str}, using fallback {rate}")
+    _nbp_cache[key] = rate
+    return rate
+
+
 # ── Allegro API — каталог офферов ─────────────────────────────────────────────
 
 def get_category_names(token, category_ids):
@@ -153,7 +192,7 @@ def get_category_names(token, category_ids):
 
 
 def get_offer_catalog(token):
-    """GET /sale/offers (all pages) → {offer_id: {name, category}}"""
+    """GET /sale/offers (all pages) -> {offer_id: {name, category}}"""
     raw_catalog = {}
     offset = 0
     print("  Fetching offer catalog...")
@@ -199,7 +238,6 @@ def get_sales_by_offer(token, date_str):
     """
     GET /order/checkout-forms с фильтром lineItems.boughtAt.gte/lte.
     Возвращает {offer_id: [qty, revenue_pln]}.
-    lineItems присутствуют в ответе при использовании этого фильтра.
     """
     d_from = f"{date_str}T00:00:00.000Z"
     d_to   = f"{date_str}T23:59:59.999Z"
@@ -234,9 +272,13 @@ def get_sales_by_offer(token, date_str):
                 continue
             for item in form.get("lineItems", []):
                 try:
-                    oid   = item["offer"]["id"]
-                    qty   = int(item.get("quantity", 1))
-                    price = float(item["price"]["amount"])
+                    oid      = item["offer"]["id"]
+                    qty      = int(item.get("quantity", 1))
+                    price    = float(item["price"]["amount"])
+                    currency = item["price"].get("currency", "PLN").upper()
+                    if currency != "PLN":
+                        rate  = get_nbp_rate(date_str, currency)
+                        price = price * rate
                     by_offer[oid][0] += qty
                     by_offer[oid][1] += qty * price
                 except Exception:
@@ -256,7 +298,6 @@ def get_costs_by_offer(token, date_str):
     """
     GET /billing/billing-entries с occurredAt фильтром.
     Возвращает {offer_id: [fees, ads, promo]}.
-    Записи без offer.id — на уровне аккаунта, пропускаются.
     """
     dt     = datetime.strptime(date_str, "%Y-%m-%d")
     tz     = get_tz(dt.month)
@@ -356,36 +397,52 @@ def main():
         cur += timedelta(days=1)
 
     print("=" * 60)
-    print(f"  PROCARE — fetch_offers.py")
+    print(f"  PROCARE — fetch_offers.py (multi-shop)")
+    print(f"  Shops: {', '.join(SHOP_NAMES)}")
     print(f"  Period: {date_from} -> {date_to}  ({len(all_dates)} days)")
     print("=" * 60)
 
-    # ── Step 1: OAuth token ──────────────────────────────────────────────────
-    print(f"\n[1/4] Getting OAuth token...")
+    # ── Step 1: OAuth tokens for all shops ──────────────────────────────────
+    print(f"\n[1/4] Getting OAuth tokens for {len(SHOPS)} shop(s)...")
     pubkey = get_gh_pubkey()
-    token, new_rt = get_token(SHOP)
-    if not token:
-        print("ERROR: Could not obtain access token. Exiting.")
+    tokens = {}  # {shop_name: access_token}
+
+    for shop_name in SHOP_NAMES:
+        shop = SHOPS[shop_name]
+        print(f"  {shop_name}...", end=" ", flush=True)
+        token, new_rt = get_token(shop)
+        if not token:
+            print(f"ERROR: Could not obtain access token for {shop_name}. Skipping.")
+            continue
+        save_token(shop["secret_name"], new_rt, pubkey)
+        tokens[shop_name] = token
+        print("OK")
+
+    if not tokens:
+        print("ERROR: No tokens obtained for any shop. Exiting.")
         return
-    save_token(SHOP["secret_name"], new_rt, pubkey)
-    print("  Token OK")
 
-    # ── Step 2: Offer catalog ────────────────────────────────────────────────
-    print(f"\n[2/4] Loading offer catalog...")
-    catalog = get_offer_catalog(token)
+    # ── Step 2: Offer catalogs for all shops ─────────────────────────────────
+    print(f"\n[2/4] Loading offer catalogs...")
+    catalogs = {}  # {shop_name: {offer_id: {name, category}}}
 
-    # ── Step 3: Day-by-day sales + costs per offer ───────────────────────────
+    for shop_name, token in tokens.items():
+        print(f"\n  --- {shop_name} ---")
+        catalogs[shop_name] = get_offer_catalog(token)
+
+    # ── Step 3: Day-by-day sales + costs per offer, per shop ─────────────────
     print(f"\n[3/4] Collecting per-offer data day by day...")
 
     month_cache  = {}   # {ym: month_data}
     current_ym   = None
-    day_orders   = {}   # {date_str: {offer_id: {"qty": int, "revenue": float}}}
-    total_items  = 0
+    # {shop_name: {date_str: {offer_id: {"qty": int, "revenue": float}}}}
+    day_orders   = {sn: {} for sn in tokens}
+    total_items  = {sn: 0 for sn in tokens}
 
     for date_str in all_dates:
         ym = date_str[:7]
 
-        # New month → save previous
+        # New month -> save previous
         if current_ym and ym != current_ym and current_ym in month_cache:
             save_month_file(current_ym, month_cache[current_ym])
             n = len(month_cache[current_ym]["days"])
@@ -395,37 +452,46 @@ def main():
         if ym not in month_cache:
             month_cache[ym] = load_month_file(ym)
 
-        print(f"  {date_str}...", end=" ", flush=True)
+        print(f"  {date_str}:", flush=True)
 
-        sales = get_sales_by_offer(token, date_str)
-        costs = get_costs_by_offer(token, date_str)
+        # Ensure day entry exists in month_cache (preserve data from other shops)
+        if date_str not in month_cache[ym]["days"]:
+            month_cache[ym]["days"][date_str] = {}
 
-        all_offers = set(sales) | set(costs)
-        day_data   = {}
+        for shop_name, token in tokens.items():
+            print(f"    {shop_name}...", end=" ", flush=True)
 
-        for oid in all_offers:
-            s   = sales.get(oid, [0, 0.0])
-            c   = costs.get(oid, [0.0, 0.0, 0.0])
-            qty, rev = s[0], s[1]
-            fees, ads, promo = c[0], c[1], c[2]
-            if rev == 0.0 and all(x == 0.0 for x in c):
-                continue
-            day_data[oid] = [qty, rev, fees, ads, promo]
-            total_items  += qty
+            sales = get_sales_by_offer(token, date_str)
+            costs = get_costs_by_offer(token, date_str)
 
-        # Track for products.json
-        if day_data:
-            day_orders[date_str] = {oid: {"qty": v[0], "revenue": v[1]}
-                                    for oid, v in day_data.items()}
+            all_offers = set(sales) | set(costs)
+            day_data   = {}
 
-        # Save into month structure
-        month_cache[ym]["days"][date_str] = {SHOP_NAME: day_data}
+            for oid in all_offers:
+                s   = sales.get(oid, [0, 0.0])
+                c   = costs.get(oid, [0.0, 0.0, 0.0])
+                qty, rev = s[0], s[1]
+                fees, ads, promo = c[0], c[1], c[2]
+                if rev == 0.0 and all(x == 0.0 for x in c):
+                    continue
+                day_data[oid] = [qty, rev, fees, ads, promo]
+                total_items[shop_name] += qty
 
-        rev_day = sum(v[1] for v in day_data.values())
-        qty_day = sum(v[0] for v in day_data.values())
-        print(f"{len(day_data)} offers  qty={qty_day}  rev={rev_day:.0f} PLN")
+            # Track for products.json
+            if day_data:
+                day_orders[shop_name][date_str] = {
+                    oid: {"qty": v[0], "revenue": v[1]}
+                    for oid, v in day_data.items()
+                }
 
-        time.sleep(0.1)
+            # Save into month structure under shop_name key
+            month_cache[ym]["days"][date_str][shop_name] = day_data
+
+            rev_day = sum(v[1] for v in day_data.values())
+            qty_day = sum(v[0] for v in day_data.values())
+            print(f"{len(day_data)} offers  qty={qty_day}  rev={rev_day:.0f} PLN")
+
+            time.sleep(0.1)
 
     # Save last month
     if current_ym and current_ym in month_cache:
@@ -433,48 +499,106 @@ def main():
         n = len(month_cache[current_ym]["days"])
         print(f"  Saved unit_data/{current_ym}.json ({n} days)")
 
-    # ── Step 4: Build products.json (preserve existing COG) ─────────────────
+    # ── Step 4: Build products.json (preserve existing COG per shop) ─────────
     print(f"\n[4/4] Building products.json...")
 
     # Load existing products.json to preserve COG data entered manually
-    existing_cog = {}  # {offer_id: cog_dict}
+    # existing_cog: {offer_id: {shop_name: cog_value, ...}}
+    existing_cog = {}
+    existing_offers_map = {}  # {offer_id: {shop_name: offer_id, ...}}
     if os.path.exists("products.json"):
         try:
             with open("products.json", encoding="utf-8") as f:
                 old_pj = json.load(f)
             for p in old_pj.get("products", []):
-                oid = p.get("offers", {}).get(SHOP_NAME, "")
-                if oid and p.get("cog"):
-                    existing_cog[oid] = p["cog"]
-            print(f"  Preserved COG for {len(existing_cog)} offers from existing products.json")
+                offers_dict = p.get("offers", {})
+                cog_dict    = p.get("cog", {})
+                # Collect all offer IDs from this product across shops
+                for sn, oid in offers_dict.items():
+                    if oid:
+                        if cog_dict:
+                            existing_cog[oid] = cog_dict
+                        existing_offers_map[oid] = offers_dict
+            cog_count = len(existing_cog)
+            print(f"  Preserved COG for {cog_count} offers from existing products.json")
         except Exception as e:
             print(f"  WARNING: could not load existing products.json: {e}")
 
+    # Collect all offer IDs in order (across all shops)
     seen_ids = set()
     all_offer_ids_ordered = []
 
-    for date_str in sorted(day_orders.keys()):
-        for oid in day_orders[date_str]:
+    # First: offers seen in day_orders (active offers first)
+    for shop_name in SHOP_NAMES:
+        if shop_name not in day_orders:
+            continue
+        for date_str in sorted(day_orders[shop_name].keys()):
+            for oid in day_orders[shop_name][date_str]:
+                if oid not in seen_ids:
+                    all_offer_ids_ordered.append(oid)
+                    seen_ids.add(oid)
+
+    # Then: remaining offers from catalogs
+    for shop_name in SHOP_NAMES:
+        if shop_name not in catalogs:
+            continue
+        for oid in catalogs[shop_name]:
             if oid not in seen_ids:
                 all_offer_ids_ordered.append(oid)
                 seen_ids.add(oid)
 
-    for oid in catalog:
-        if oid not in seen_ids:
-            all_offer_ids_ordered.append(oid)
-            seen_ids.add(oid)
+    # Build a lookup: offer_id -> shop_name (which shop owns it)
+    offer_to_shop = {}
+    for shop_name in SHOP_NAMES:
+        if shop_name not in catalogs:
+            continue
+        for oid in catalogs[shop_name]:
+            offer_to_shop[oid] = shop_name
+    # Also from day_orders for offers not in catalog
+    for shop_name in SHOP_NAMES:
+        if shop_name not in day_orders:
+            continue
+        for date_str in day_orders[shop_name]:
+            for oid in day_orders[shop_name][date_str]:
+                if oid not in offer_to_shop:
+                    offer_to_shop[oid] = shop_name
 
     products = []
     for oid in all_offer_ids_ordered:
-        info = catalog.get(oid, {"name": oid, "category": "Остальные"})
+        # Determine which shop this offer belongs to
+        shop_name = offer_to_shop.get(oid, SHOP_NAMES[0])
+
+        # Get info from catalog (try the owning shop first, then any)
+        info = None
+        if shop_name in catalogs:
+            info = catalogs[shop_name].get(oid)
+        if not info:
+            for sn in SHOP_NAMES:
+                if sn in catalogs and oid in catalogs[sn]:
+                    info = catalogs[sn][oid]
+                    shop_name = sn
+                    break
+        if not info:
+            info = {"name": oid, "category": "Остальные"}
+
+        # Build offers dict: {shop_name: offer_id}
+        # Preserve existing multi-shop mappings if present
+        offers_dict = {}
+        if oid in existing_offers_map:
+            offers_dict = dict(existing_offers_map[oid])
+        offers_dict[shop_name] = oid
+
         entry = {
             "ean":      oid,
             "name":     info["name"],
             "category": info["category"],
-            "offers":   {SHOP_NAME: oid},
+            "offers":   offers_dict,
         }
+
+        # Preserve existing COG per shop
         if oid in existing_cog:
             entry["cog"] = existing_cog[oid]
+
         products.append(entry)
 
     products_json = {
@@ -491,18 +615,31 @@ def main():
     print(f"\n{'=' * 60}")
     print(f"  DONE")
     print(f"  Products in catalog  : {len(products)}")
-    print(f"  Days with orders     : {len(day_orders)}")
-    print(f"  Total items sold     : {total_items}")
+    for shop_name in SHOP_NAMES:
+        if shop_name in tokens:
+            days_cnt = len(day_orders.get(shop_name, {}))
+            items    = total_items.get(shop_name, 0)
+            print(f"  {shop_name}: {days_cnt} days with orders, {items} items sold")
     print(f"  Date range           : {date_from} -> {date_to}")
     print(f"  Months saved         : {sorted(month_cache.keys())}")
 
-    if day_orders:
+    # Last 5 days summary (across all shops)
+    all_active_dates = set()
+    for shop_name in SHOP_NAMES:
+        if shop_name in day_orders:
+            all_active_dates.update(day_orders[shop_name].keys())
+
+    if all_active_dates:
         print(f"\n  Last 5 days with sales:")
-        for d in sorted(day_orders.keys())[-5:]:
-            d_data  = day_orders[d]
-            day_rev = sum(v["revenue"] for v in d_data.values())
-            day_qty = sum(v["qty"]     for v in d_data.values())
-            print(f"    {d}: {len(d_data)} offers, qty={day_qty}, rev={day_rev:.0f} PLN")
+        for d in sorted(all_active_dates)[-5:]:
+            parts = []
+            for sn in SHOP_NAMES:
+                if sn in day_orders and d in day_orders[sn]:
+                    d_data  = day_orders[sn][d]
+                    day_rev = sum(v["revenue"] for v in d_data.values())
+                    day_qty = sum(v["qty"]     for v in d_data.values())
+                    parts.append(f"{sn}: {len(d_data)} offers, qty={day_qty}, rev={day_rev:.0f}")
+            print(f"    {d}: {' | '.join(parts)}")
 
     print(f"{'=' * 60}")
 
