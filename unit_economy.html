@@ -74,6 +74,8 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F0F7F4;color:#1a1a1
 .prod-row.sel{background:#edfaf5;border-left:3px solid #0F6E56}
 .pr-name{font-size:13px;font-weight:600;color:#1a1a1a;line-height:1.3}
 .pr-meta{font-size:10px;color:#888;margin-top:3px;line-height:1.8}
+.allegro-link{font-size:10px;color:#aaa;text-decoration:none;margin-left:5px;vertical-align:middle;border-radius:3px;padding:0 3px;transition:all .15s}
+.allegro-link:hover{color:#ff6600;background:#fff3e8}
 .pr-badge{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;padding:1px 7px;border-radius:3px;margin-bottom:3px;letter-spacing:.2px}
 .b-hit{background:#fff3e0;color:#BA7517;border:1px solid #f0d080}
 .b-winning{background:#e8f5ef;color:#0F6E56;border:1px solid #b2dfcf}
@@ -649,7 +651,7 @@ function renderTable() {
       return `<div class="prod-row${selKey === key ? ' sel' : ''}" onclick="openSidebar('${escHtml(key)}')">
         <div>
           <div class="pr-badge ${BCLS[st]}">${BADGE[st]}</div>
-          <div class="pr-name">${escHtml(p.name)}</div>
+          <div class="pr-name">${escHtml(p.name)}${offerIds[0] ? `<a href="https://allegro.pl/oferta/${offerIds[0]}" target="_blank" onclick="event.stopPropagation()" class="allegro-link" title="Открыть на Allegro">↗</a>` : ''}</div>
           <div class="pr-meta">${metaBase}${catTag}</div>
         </div>
         <div class="tc" style="color:#c8e6dc">0 шт.</div>
@@ -671,7 +673,7 @@ function renderTable() {
     return `<div class="prod-row${selKey === key ? ' sel' : ''}" onclick="openSidebar('${escHtml(key)}')">
       <div>
         <div class="pr-badge ${BCLS[st]}">${BADGE[st]}</div>
-        <div class="pr-name">${escHtml(p.name)}</div>
+        <div class="pr-name">${escHtml(p.name)}${offerIds[0] ? `<a href="https://allegro.pl/oferta/${offerIds[0]}" target="_blank" onclick="event.stopPropagation()" class="allegro-link" title="Открыть на Allegro">↗</a>` : ''}</div>
         <div class="pr-meta">${metaBase}${catTag}${avgPrice}${cogTag}</div>
       </div>
       <div class="tc">${d.sales} шт.</div>
