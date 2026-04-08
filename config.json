@@ -1,0 +1,17 @@
+{
+  "project": "PROCARE",
+  "repo": "sellerup-biz/PROCARE",
+  "redirect_uri": "https://sellerup-biz.github.io/PROCARE/callback.html",
+  "goal": 100000,
+  "currency": "PLN",
+  "shops": [
+    {
+      "name": "ProCare",
+      "env_prefix": "PROCARE",
+      "client_id": "cfdeb63bdfd24a6ea24dbf17674d4fd1",
+      "color": "#0F6E56",
+      "bg": "rgba(15,110,86,0.18)",
+      "marketplaces": ["allegro-pl", "allegro-business-pl"]
+    }
+  ]
+}
