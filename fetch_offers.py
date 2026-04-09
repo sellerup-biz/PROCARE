@@ -485,6 +485,13 @@ def main():
                 }
 
             # Save into month structure under shop_name key
+            # Preserve manually uploaded ads (index 3) if new billing has 0
+            old_day_shop = month_cache[ym]["days"].get(date_str, {}).get(shop_name, {})
+            if old_day_shop:
+                for oid, vals in day_data.items():
+                    old = old_day_shop.get(oid)
+                    if old and len(old) > 3 and vals[3] == 0 and old[3] > 0:
+                        vals[3] = old[3]
             month_cache[ym]["days"][date_str][shop_name] = day_data
 
             rev_day = sum(v[1] for v in day_data.values())
