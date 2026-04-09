@@ -485,12 +485,13 @@ def main():
                 }
 
             # Save into month structure under shop_name key
-            # Preserve manually uploaded ads (index 3) if new billing has 0
+            # Preserve manually uploaded ads: keep max(old_ads, new_billing_ads)
+            # so that Excel-sourced ads are never overwritten by smaller billing values
             old_day_shop = month_cache[ym]["days"].get(date_str, {}).get(shop_name, {})
             if old_day_shop:
                 for oid, vals in day_data.items():
                     old = old_day_shop.get(oid)
-                    if old and len(old) > 3 and vals[3] == 0 and old[3] > 0:
+                    if old and len(old) > 3 and old[3] > vals[3]:
                         vals[3] = old[3]
             month_cache[ym]["days"][date_str][shop_name] = day_data
 
