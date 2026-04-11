@@ -686,13 +686,17 @@ function renderTable() {
     const oidDisplay = offerIds.length > 0 ? '…' + offerIds[0].slice(-5) : '—';
     const metaBase = `ID: <span class="id-val">${oidDisplay}</span> · EAN: <span class="id-val">${escHtml(p.ean || '—')}</span>`;
     const catTag = p.category ? ` · <span style="color:#0F6E56;font-weight:600">${escHtml(p.category)}</span>` : '';
+    const vaRow = getVisitsAgg(p, dateFrom, dateTo);
+    const convTagRow = vaRow && vaRow.visits > 0
+      ? ` · <span style="color:#1d4ed8" title="Конверсия из отчёта визитов: ${vaRow.transactions}/${vaRow.visits} визитов · ${vaRow.cart} в корзину">CR: <b>${vaRow.conversion.toFixed(2).replace('.', ',')}%</b></span>`
+      : '';
 
     if (!d) {
       return `<div class="prod-row${selKey === key ? ' sel' : ''}" onclick="openSidebar('${escHtml(key)}')">
         <div>
           <div class="pr-badge ${BCLS[st]}">${BADGE[st]}</div>
           <div class="pr-name">${escHtml(p.name)}${offerIds[0] ? `<a href="https://allegro.pl/oferta/${offerIds[0]}" target="_blank" onclick="event.stopPropagation()" class="allegro-link" title="Открыть на Allegro">↗</a>` : ''}</div>
-          <div class="pr-meta">${metaBase}${catTag}</div>
+          <div class="pr-meta">${metaBase}${catTag}${convTagRow}</div>
         </div>
         <div class="tc" style="color:#c8e6dc">0 шт.</div>
         <div class="tc" style="color:#c8e6dc">—</div>
@@ -714,7 +718,7 @@ function renderTable() {
       <div>
         <div class="pr-badge ${BCLS[st]}">${BADGE[st]}</div>
         <div class="pr-name">${escHtml(p.name)}${offerIds[0] ? `<a href="https://allegro.pl/oferta/${offerIds[0]}" target="_blank" onclick="event.stopPropagation()" class="allegro-link" title="Открыть на Allegro">↗</a>` : ''}</div>
-        <div class="pr-meta">${metaBase}${catTag}${avgPrice}${cogTag}</div>
+        <div class="pr-meta">${metaBase}${catTag}${avgPrice}${cogTag}${convTagRow}</div>
       </div>
       <div class="tc">${d.sales} шт.</div>
       <div class="tc am">${zl(d.revenue)}
