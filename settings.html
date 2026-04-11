@@ -162,6 +162,38 @@ input:focus{border-color:#0F6E56}
   <div class="log-box" id="logBox"></div>
 </div>
 
+<!-- ══════════ ЗАГРУЗКА ОТЧЁТОВ ВИЗИТОВ ══════════ -->
+<div class="section-divider"><span>Загрузка отчётов визитов</span></div>
+
+<div class="card">
+  <div class="card-title">Загрузить «Odwiedziny wg ofert» из Allegro</div>
+  <div class="card-desc">
+    Скачай файл из кабинета продавца Allegro: <b>Statystyki sprzedaży → Odwiedziny wg ofert</b><br>
+    Можно выбрать сразу <b>несколько файлов</b> — каждый файл = один месяц (определяется по листу «Zakres danych»).<br>
+    Данные (визиты, конверсия, добавления в корзину) сохраняются в <code style="font-size:11px;background:#f0f7f4;padding:1px 5px;border-radius:3px">unit_data/YYYY-MM.json</code> и отображаются в карточке оффера на странице «Юнит-экономика».
+  </div>
+
+  <label style="margin-bottom:8px">Файл(ы) отчёта визитов (.xlsx)</label>
+  <div class="drop-zone" id="visDropZone" onclick="document.getElementById('visFile').click()">
+    <input type="file" id="visFile" accept=".xlsx" multiple onchange="onVisFilesSelected(this)">
+    <div class="drop-zone-icon">👁</div>
+    <div class="drop-zone-text" id="visDropText">Нажмите или перетащите файл(ы)</div>
+    <div class="drop-zone-hint">Raport-*.xlsx · можно несколько</div>
+  </div>
+
+  <div class="preview-box" id="visPreviewBox">
+    <div class="preview-title">Предпросмотр данных</div>
+    <div id="visPreviewContent"></div>
+  </div>
+
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px">
+    <button class="btn btn-primary" id="visApplyBtn" onclick="applyVisits()" disabled>⬆ Применить и сохранить в GitHub</button>
+    <button class="btn btn-secondary" id="visClearBtn" onclick="clearVisFiles()" style="display:none">✕ Очистить</button>
+  </div>
+
+  <div class="log-box" id="visLogBox"></div>
+</div>
+
 <div class="footer" style="margin-top:1rem">PROCARE · НАСТРОЙКИ · 2026</div>
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -432,6 +464,223 @@ function triggerWorkflow(workflowFile, statusElId) {
     else if(r.status===401||r.status===403) showStatus(statusElId,'err','✗ Неверный GitHub Token');
     else showStatus(statusElId,'err','✗ Ошибка HTTP '+r.status);
   }).catch(function(e){ showStatus(statusElId,'err','✗ Ошибка сети: '+e.message); });
+}
+
+// ── VISITS UPLOAD ─────────────────────────────────────────────
+// parsedVisits structure: { 'YYYY-MM': { offerId: [visits, transactions, cart_adds] } }
+var parsedVisits = null;
+
+var visDz = document.getElementById('visDropZone');
+visDz.addEventListener('dragover', function(e){ e.preventDefault(); visDz.classList.add('drag-over'); });
+visDz.addEventListener('dragleave', function(){ visDz.classList.remove('drag-over'); });
+visDz.addEventListener('drop', function(e){
+  e.preventDefault(); visDz.classList.remove('drag-over');
+  var files = Array.from(e.dataTransfer.files).filter(function(f){ return f.name.toLowerCase().endsWith('.xlsx'); });
+  if(files.length) processVisFiles(files);
+});
+
+function onVisFilesSelected(input){
+  if(input.files && input.files.length) processVisFiles(Array.from(input.files));
+}
+
+// Find the YYYY-MM month from the "Zakres danych" sheet — uses "Data początku" row.
+function visExtractMonth(wb){
+  var sn = wb.SheetNames.find(function(n){ return /zakres/i.test(n); }) || wb.SheetNames[0];
+  var ws = wb.Sheets[sn];
+  var rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+  for(var i = 0; i < rows.length; i++){
+    var label = String(rows[i][0]||'').toLowerCase();
+    if(label.indexOf('początku') >= 0 || label.indexOf('poczatku') >= 0){
+      var raw = rows[i][1];
+      // Excel date number
+      if(typeof raw === 'number'){
+        var dt = XLSX.SSF.parse_date_code(raw);
+        if(dt) return String(dt.y).padStart(4,'0') + '-' + String(dt.m).padStart(2,'0');
+      }
+      // ISO/Date string
+      var d = new Date(raw);
+      if(!isNaN(d.getTime())) return d.getUTCFullYear() + '-' + String(d.getUTCMonth()+1).padStart(2,'0');
+    }
+  }
+  return null;
+}
+
+// Parse "Odwiedziny wg ofert" into { offerId: [visits, transactions, cart_adds] }
+function visExtractOffers(wb){
+  var sn = wb.SheetNames.find(function(n){ return /odwiedz/i.test(n); });
+  if(!sn) return null;
+  var ws = wb.Sheets[sn];
+  var rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+  if(rows.length < 2) return null;
+
+  // Find column indices from header row
+  var hdr = rows[0].map(function(h){ return String(h||'').toLowerCase(); });
+  var idxOffer = hdr.findIndex(function(h){ return h.indexOf('id oferty') >= 0; });
+  var idxVis   = hdr.findIndex(function(h){ return h.indexOf('liczba wizyt') >= 0 || (h.indexOf('wizyt') >= 0 && h.indexOf('liczba') >= 0); });
+  var idxTr    = hdr.findIndex(function(h){ return h.indexOf('transakcj') >= 0; });
+  var idxCart  = hdr.findIndex(function(h){ return h.indexOf('koszyk') >= 0; });
+  if(idxOffer < 0 || idxVis < 0) return null;
+
+  var out = {};
+  for(var i = 1; i < rows.length; i++){
+    var r = rows[i];
+    var oid = String(r[idxOffer]||'').trim();
+    if(!oid) continue;
+    var v = parseInt(r[idxVis], 10) || 0;
+    var t = idxTr   >= 0 ? (parseInt(r[idxTr],   10) || 0) : 0;
+    var c = idxCart >= 0 ? (parseInt(r[idxCart], 10) || 0) : 0;
+    if(v === 0 && t === 0 && c === 0) continue;
+    // If the same offer appears more than once, sum the values.
+    if(out[oid]){
+      out[oid][0] += v;
+      out[oid][1] += t;
+      out[oid][2] += c;
+    } else {
+      out[oid] = [v, t, c];
+    }
+  }
+  return out;
+}
+
+function processVisFiles(files){
+  document.getElementById('visDropText').textContent = '⏳ Читаю ' + files.length + ' файл(ов)...';
+  var agg = {}; // ym -> offerId -> [v,t,c]
+  var errors = [];
+  var processed = 0;
+
+  files.forEach(function(file){
+    var reader = new FileReader();
+    reader.onload = function(e){
+      try {
+        var wb = XLSX.read(e.target.result, {type:'array'});
+        var ym = visExtractMonth(wb);
+        var offers = visExtractOffers(wb);
+        if(!ym){ errors.push(file.name + ': не найден месяц в «Zakres danych»'); }
+        else if(!offers){ errors.push(file.name + ': не найден лист «Odwiedziny wg ofert»'); }
+        else {
+          if(!agg[ym]) agg[ym] = {};
+          // Merge — if same month uploaded twice, sum values
+          Object.keys(offers).forEach(function(oid){
+            if(agg[ym][oid]){
+              agg[ym][oid][0] += offers[oid][0];
+              agg[ym][oid][1] += offers[oid][1];
+              agg[ym][oid][2] += offers[oid][2];
+            } else {
+              agg[ym][oid] = offers[oid].slice();
+            }
+          });
+        }
+      } catch(err){
+        errors.push(file.name + ': ' + err.message);
+      }
+      processed++;
+      if(processed === files.length) finishVisParsing(agg, errors);
+    };
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function finishVisParsing(agg, errors){
+  var months = Object.keys(agg).sort();
+  if(months.length === 0){
+    alert('Не удалось распарсить ни одного файла.\n\n' + errors.join('\n'));
+    document.getElementById('visDropText').textContent = 'Нажмите или перетащите файл(ы)';
+    return;
+  }
+
+  parsedVisits = agg;
+  document.getElementById('visDropText').textContent = '✓ Готово (' + months.length + ' месяц(ев))';
+  document.getElementById('visApplyBtn').disabled = false;
+  document.getElementById('visClearBtn').style.display = 'inline-flex';
+
+  var html = months.map(function(ym){
+    var offers = Object.keys(agg[ym]);
+    var totalV = 0, totalT = 0, totalC = 0;
+    offers.forEach(function(oid){
+      totalV += agg[ym][oid][0];
+      totalT += agg[ym][oid][1];
+      totalC += agg[ym][oid][2];
+    });
+    var conv = totalV > 0 ? (totalT/totalV*100).toFixed(2).replace('.', ',') + '%' : '—';
+    return '<div class="preview-row"><span>' + ym + '</span><span>'
+      + offers.length + ' офферов · ' + totalV + ' визитов · ' + conv + ' конв · ' + totalC + ' в корзину</span></div>';
+  }).join('');
+  if(errors.length){
+    html += '<div class="preview-row" style="color:#A32D2D"><span>Ошибки</span><span>' + errors.length + '</span></div>';
+  }
+  document.getElementById('visPreviewContent').innerHTML = html;
+  document.getElementById('visPreviewBox').style.display = 'block';
+}
+
+function clearVisFiles(){
+  parsedVisits = null;
+  document.getElementById('visFile').value = '';
+  document.getElementById('visDropText').textContent = 'Нажмите или перетащите файл(ы)';
+  document.getElementById('visApplyBtn').disabled = true;
+  document.getElementById('visClearBtn').style.display = 'none';
+  document.getElementById('visPreviewBox').style.display = 'none';
+  document.getElementById('visLogBox').style.display = 'none';
+  document.getElementById('visLogBox').innerHTML = '';
+}
+
+function visLog(msg, cls){
+  var box = document.getElementById('visLogBox');
+  box.style.display = 'block';
+  box.innerHTML += '<div class="' + (cls||'info') + '">' + msg + '</div>';
+  box.scrollTop = box.scrollHeight;
+}
+
+async function applyVisits(){
+  if(!parsedVisits){ alert('Сначала выбери файл'); return; }
+  var ghToken = document.getElementById('gh_token').value.trim();
+  if(!ghToken){ alert('Введи GitHub Token'); return; }
+
+  document.getElementById('visApplyBtn').disabled = true;
+  document.getElementById('visLogBox').innerHTML = '';
+  visLog('Начинаю обновление unit_data (visits)...', 'info');
+
+  var months = Object.keys(parsedVisits).sort();
+
+  for(var mi = 0; mi < months.length; mi++){
+    var ym = months[mi];
+    var filePath = 'unit_data/' + ym + '.json';
+    visLog('Читаю ' + filePath + ' из GitHub...', 'info');
+
+    var ghFile, monthData;
+    try {
+      ghFile = await ghGet(filePath);
+      var raw = decodeURIComponent(escape(atob(ghFile.content.replace(/\n/g,''))));
+      monthData = JSON.parse(raw);
+    } catch(e){
+      // File doesn't exist yet — create a fresh skeleton so visits can still be saved
+      visLog('  ⓘ ' + filePath + ' не найден — создаю новый файл', 'info');
+      ghFile = {sha: undefined};
+      monthData = {month: ym, days: {}};
+    }
+
+    monthData.visits = monthData.visits || {};
+    var offers = parsedVisits[ym];
+    var added = 0, updated = 0;
+    Object.keys(offers).forEach(function(oid){
+      if(monthData.visits[oid]) updated++; else added++;
+      monthData.visits[oid] = offers[oid];
+    });
+
+    visLog('  ' + ym + ': обновлено ' + updated + ', добавлено ' + added + ' офферов', 'info');
+
+    var newContent = JSON.stringify(monthData);
+    var msg = 'Update visits in unit_data/' + ym + '.json from Allegro Odwiedziny wg ofert';
+    try {
+      await ghPut(filePath, newContent, ghFile.sha, msg);
+      visLog('  ✓ ' + filePath + ' сохранён', 'ok');
+    } catch(e){
+      visLog('  ✗ Ошибка сохранения ' + filePath + ': ' + e.message, 'err');
+    }
+  }
+
+  visLog('', 'info');
+  visLog('✓ Готово! Данные визитов обновлены в GitHub. Откройте «Юнит-экономика» через ~30-60 сек.', 'ok');
+  document.getElementById('visApplyBtn').disabled = false;
 }
 
 function triggerSync()      { triggerWorkflow('fetch.yml',      'syncStatus'); }
