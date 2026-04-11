@@ -135,6 +135,15 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F0F7F4;color:#1a1a1
 .dl-dot{width:9px;height:9px;border-radius:2px;flex-shrink:0}
 .dl-v{font-weight:700;color:#1a1a1a;margin-left:2px}
 
+/* ── VISITS REPORT in sidebar ── */
+.sb-vis-sec{margin-top:14px;padding:12px 14px;background:#eff6ff;border:1px solid #c7dcfb;border-radius:10px}
+.sb-vis-title{font-size:10px;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px}
+.sb-vis-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.sb-vis-cell{background:#fff;border:1px solid #dbeafe;border-radius:8px;padding:8px 10px;text-align:center}
+.sb-vis-cell .l{font-size:9px;color:#6b7c93;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+.sb-vis-cell .v{font-size:17px;font-weight:800;color:#1d4ed8;line-height:1.1}
+.sb-vis-empty{font-size:11px;color:#6b7c93;text-align:center;padding:4px 0}
+
 /* ── SHOP BREAKDOWN in sidebar ── */
 .sb-shop-sec{margin-top:14px;padding-top:12px;border-top:1px solid #e8f5ef}
 .sb-shop-title{font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px}
@@ -416,6 +425,37 @@ function margin(d, p) {
 }
 function marginPct(d, p) {
   return (d && d.revenue > 0) ? margin(d, p) / d.revenue * 100 : 0;
+}
+
+// Aggregate visit-report data for a product across months in current date range.
+// Visits are stored at month-level (uploaded from Allegro "Odwiedziny wg ofert" reports)
+// as: monthData[ym].visits[offerId] = [visits, transactions, cart_adds].
+// Returns null if no visit data exists for any of the product's offer ids in the range.
+function getVisitsAgg(p, from, to) {
+  if (!p || !p.offers) return null;
+  const oids = new Set();
+  for (const shopName of CONFIG.shops.map(s => s.name)) {
+    const oid = p.offers[shopName];
+    if (oid) oids.add(String(oid));
+  }
+  if (oids.size === 0) return null;
+
+  let visits = 0, transactions = 0, cart = 0, hasAny = false;
+  for (const ym of monthsInRange(from, to)) {
+    const md = monthData[ym];
+    if (!md || !md.visits) continue;
+    for (const oid of oids) {
+      const v = md.visits[oid];
+      if (!v) continue;
+      hasAny = true;
+      visits       += +v[0] || 0;
+      transactions += +v[1] || 0;
+      cart         += +v[2] || 0;
+    }
+  }
+  if (!hasAny) return null;
+  const conversion = visits > 0 ? (transactions / visits * 100) : 0;
+  return {visits, transactions, cart, conversion};
 }
 
 // Get COG for a specific shop (used in sidebar per-shop breakdown)
@@ -729,7 +769,31 @@ function openSidebar(key) {
   }
   if (!idsHtml) idsHtml = 'Offer ID: <span class="id-val">—</span> · ';
 
-  let metricsHtml = '', distHtml = '', shopBreakdownHtml = '';
+  let metricsHtml = '', distHtml = '', shopBreakdownHtml = '', visitsHtml = '';
+
+  // ── Visits report (from uploaded Allegro Odwiedziny wg ofert) ──
+  const va = getVisitsAgg(p, dateFrom, dateTo);
+  if (va) {
+    visitsHtml = `
+    <div class="sb-vis-sec">
+      <div class="sb-vis-title">Отчёт визитов</div>
+      <div class="sb-vis-grid">
+        <div class="sb-vis-cell">
+          <div class="l">Визиты</div>
+          <div class="v">${va.visits.toLocaleString('ru-RU')}</div>
+        </div>
+        <div class="sb-vis-cell">
+          <div class="l">Конверсия</div>
+          <div class="v">${va.conversion.toFixed(2).replace('.', ',')}%</div>
+        </div>
+        <div class="sb-vis-cell">
+          <div class="l">В корзину</div>
+          <div class="v">${va.cart.toLocaleString('ru-RU')}</div>
+        </div>
+      </div>
+    </div>`;
+  }
+
 
   if (d) {
     const cogUnit  = getCog(p);
@@ -857,6 +921,7 @@ function openSidebar(key) {
     <div class="sb-body">
       ${metricsHtml}
       ${distHtml}
+      ${visitsHtml}
       ${shopBreakdownHtml}
     </div>`;
 
