@@ -126,7 +126,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F0F7F4;color:#1a1a1
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
     <div>
       <div class="chart-title">Продажи по дням · последние 30 дней</div>
-      <div class="chart-sub">Allegro · обновляется каждую ночь автоматически</div>
+      <div class="chart-sub">Allegro · brutto (товар + доставка покупателя) · обновляется каждую ночь автоматически</div>
     </div>
     <div id="dailyLegend" style="display:flex;gap:12px;flex-wrap:wrap"></div>
   </div>
@@ -138,7 +138,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F0F7F4;color:#1a1a1
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
     <div>
       <div class="chart-title">Продажи по месяцам · 2026</div>
-      <div class="chart-sub">Allegro · обновляется каждую ночь автоматически</div>
+      <div class="chart-sub">Allegro · brutto (товар + доставка покупателя) · обновляется каждую ночь автоматически</div>
     </div>
   </div>
   <canvas id="monthlyChart" style="width:100%;max-height:320px"></canvas>
@@ -197,8 +197,20 @@ function fmt(n){
 function fmtK(n){
   return n >= 1000 ? (n/1000).toFixed(1)+'k' : n.toFixed(0);
 }
+// "Wartość sprzedaży i dostawy" как в Allegro UI: товар + доставка покупателя
 function totalSales(record){
-  return CONFIG.shops.reduce(function(sum,s){ return sum+(record[s.name]||0); }, 0);
+  return CONFIG.shops.reduce(function(sum,s){ return sum+(record[s.name]||0); }, 0)
+       + (record.buyerDelivery||0);
+}
+function shopSalesGross(record, shopName){
+  // PRO-rated buyer delivery is stored at record level (single-shop today),
+  // so we attribute it to the shop column in single-shop setups.
+  // For multi-shop, buyerDelivery is added once to the first shop bar.
+  var base = record[shopName]||0;
+  if (CONFIG.shops.length === 1) return base + (record.buyerDelivery||0);
+  // multi-shop: attach to first shop only to avoid double-count
+  if (CONFIG.shops[0] && CONFIG.shops[0].name === shopName) return base + (record.buyerDelivery||0);
+  return base;
 }
 function totalCosts(c){
   return (c.commission||0)+(c.delivery||0)+(c.ads||0)+(c.subscription||0);
@@ -268,7 +280,7 @@ function renderDailyChart(){
   var datasets = CONFIG.shops.map(function(shop){
     return {
       label: shop.name,
-      data: days.map(function(d){ return d[shop.name]||0; }),
+      data: days.map(function(d){ return shopSalesGross(d, shop.name); }),
       backgroundColor: days.map(function(d){ return d.partial?shop.color+'66':shop.bg; }),
       borderColor: days.map(function(d){ return d.partial?shop.color+'80':shop.color; }),
       borderWidth: 2, borderRadius: 4
@@ -300,8 +312,8 @@ function renderMonthlyChart(){
   var labels = DATA.months.map(function(m){ return m.month; });
   var datasets = CONFIG.shops.map(function(shop){
     return {
-      label: shop.name+' (продажи)',
-      data: DATA.months.map(function(m){ return m[shop.name]||0; }),
+      label: shop.name+' (продажи + доставка)',
+      data: DATA.months.map(function(m){ return shopSalesGross(m, shop.name); }),
       backgroundColor: shop.bg,
       borderColor: shop.color,
       borderWidth: 2, borderRadius: 5, stack:'sales'
