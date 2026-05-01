@@ -1,31 +1,41 @@
 """
-PROCARE — сбор данных за последние N дней поштучно
+PROCARE — сбор данных за последние N дней поштучно (мульти-магазин)
 Используется для получения дневных записей вместо месячных агрегатов.
 N задаётся через RECENT_DAYS (дефолт 3).
+
+Конфигурация магазинов — config.json
 """
 import requests, json, os, base64
 from datetime import datetime, timedelta, timezone, date
 from nacl import encoding, public
 from collections import defaultdict
 
-REDIRECT_URI = "https://sellerup-biz.github.io/PROCARE/callback.html"
+# ── Загрузка конфига ─────────────────────────────────────────
+with open(os.path.join(os.path.dirname(__file__) or ".", "config.json"), encoding="utf-8") as _f:
+    CONFIG = json.load(_f)
+
+REDIRECT_URI = CONFIG["redirect_uri"]
 GH_TOKEN     = os.environ.get("GH_TOKEN", "")
-GH_REPO      = "sellerup-biz/PROCARE"
+GH_REPO      = CONFIG["repo"]
 
 RECENT_DAYS  = int(os.environ.get("RECENT_DAYS", "3"))
 
 MONTH_RU = {1:"Янв",2:"Фев",3:"Мар",4:"Апр",5:"Май",6:"Июн",
             7:"Июл",8:"Авг",9:"Сен",10:"Окт",11:"Ноя",12:"Дек"}
 
-SHOPS = {
-    "ProCare": {
-        "client_id":     os.environ.get("CLIENT_ID_PROCARE", ""),
-        "client_secret": os.environ.get("CLIENT_SECRET_PROCARE", ""),
-        "refresh_token": os.environ.get("REFRESH_TOKEN_PROCARE", ""),
-        "secret_name":   "REFRESH_TOKEN_PROCARE",
-        "marketplaces":  ["allegro-pl", "allegro-business-pl"],
-    },
-}
+# Строим SHOPS из config.json + env
+SHOPS = {}
+for s in CONFIG["shops"]:
+    pfx = s["env_prefix"]
+    SHOPS[s["name"]] = {
+        "client_id":     os.environ.get(f"CLIENT_ID_{pfx}", ""),
+        "client_secret": os.environ.get(f"CLIENT_SECRET_{pfx}", ""),
+        "refresh_token": os.environ.get(f"REFRESH_TOKEN_{pfx}", ""),
+        "secret_name":   f"REFRESH_TOKEN_{pfx}",
+        "marketplaces":  s.get("marketplaces", ["allegro-pl", "allegro-business-pl"]),
+    }
+
+SHOP_NAMES = [s["name"] for s in CONFIG["shops"]]
 
 BILLING_MAP = {
     "SUC":"commission","SUJ":"commission","LDS":"commission","HUN":"commission",
@@ -63,6 +73,8 @@ def get_billing_cat(tid, tnam):
     return "other"
 
 
+# ── AUTH & GITHUB ─────────────────────────────────────────────
+
 def get_gh_pubkey():
     r = requests.get(
         f"https://api.github.com/repos/{GH_REPO}/actions/secrets/public-key",
@@ -78,18 +90,23 @@ def save_token(secret_name, new_rt, pubkey):
             f"https://api.github.com/repos/{GH_REPO}/actions/secrets/{secret_name}",
             headers={"Authorization":f"token {GH_TOKEN}","Accept":"application/vnd.github+json"},
             json={"encrypted_value":enc,"key_id":pubkey["key_id"]})
-        print(f"  ✅ Токен {secret_name} сохранён" if resp.status_code in (201,204) else f"  ⚠ {resp.status_code}")
+        if resp.status_code in (201, 204):
+            print(f"  ✅ Токен {secret_name} сохранён")
+        else:
+            print(f"  ⚠ Токен {secret_name}: статус {resp.status_code}")
     except Exception as e:
-        print(f"  ⚠ {e}")
+        print(f"  ⚠ Ошибка токена {secret_name}: {e}")
 
 def get_token(shop):
     r = requests.post(
         "https://allegro.pl/auth/oauth/token",
         auth=(shop["client_id"], shop["client_secret"]),
-        data={"grant_type":"refresh_token","refresh_token":shop["refresh_token"],"redirect_uri":REDIRECT_URI})
+        data={"grant_type":"refresh_token",
+              "refresh_token":shop["refresh_token"],
+              "redirect_uri":REDIRECT_URI})
     d = r.json()
     if "access_token" not in d:
-        print(f"  ОШИБКА: {d}"); return None, None
+        print(f"  ОШИБКА токена: {d}"); return None, None
     return d["access_token"], d.get("refresh_token","")
 
 def hdrs(t):
@@ -98,6 +115,8 @@ def hdrs(t):
 def get_tz(month):
     return 2 if 3 <= month <= 10 else 1
 
+
+# ── ПРОДАЖИ ЗА ДЕНЬ ───────────────────────────────────────────
 
 def get_sales_for_day(token, date_str, marketplaces):
     dt     = datetime.strptime(date_str, "%Y-%m-%d")
@@ -113,15 +132,64 @@ def get_sales_for_day(token, date_str, marketplaces):
                 headers=hdrs(token),
                 params={"group":"INCOME","occurredAt.gte":d_from,"occurredAt.lte":d_to,
                         "marketplaceId":mkt,"limit":50,"offset":offset})
-            if resp.status_code != 200: break
+            if resp.status_code != 200:
+                print(f"    ⚠ payments {mkt}: HTTP {resp.status_code}")
+                break
             ops = resp.json().get("paymentOperations",[])
             for op in ops:
                 try: by_mkt[mkt] += float(op["value"]["amount"])
-                except: pass
+                except Exception: pass
             if len(ops) < 50: break
             offset += 50
+    # pl + business-pl → одно число PLN
     return round(by_mkt.get("allegro-pl",0) + by_mkt.get("allegro-business-pl",0), 2)
 
+
+# ── ДОСТАВКА, ОПЛАЧЕННАЯ ПОКУПАТЕЛЕМ (для brutto-выручки) ─────
+
+def get_buyer_delivery_for_day(token, date_str):
+    """
+    Сумма delivery.cost.amount по всем checkout-forms за день
+    (PAID/READY_FOR_PROCESSING/SENT и т.д., но не CANCELLED).
+    Это то, что покупатель заплатил за доставку — Allegro UI учитывает
+    этот доход в "Wartość sprzedaży i dostawy".
+    """
+    d_from = f"{date_str}T00:00:00.000Z"
+    d_to   = f"{date_str}T23:59:59.999Z"
+    total  = 0.0
+    offset = 0
+    while True:
+        try:
+            resp = requests.get(
+                "https://api.allegro.pl/order/checkout-forms",
+                headers=hdrs(token),
+                params={
+                    "lineItems.boughtAt.gte": d_from,
+                    "lineItems.boughtAt.lte": d_to,
+                    "limit": 100, "offset": offset,
+                },
+                timeout=30,
+            )
+        except Exception as e:
+            print(f"    ⚠ buyer-delivery {date_str}: {e}")
+            break
+        if resp.status_code != 200:
+            print(f"    ⚠ buyer-delivery {date_str}: HTTP {resp.status_code}")
+            break
+        forms = resp.json().get("checkoutForms", [])
+        for form in forms:
+            if form.get("status") == "CANCELLED":
+                continue
+            try:
+                total += float(form["delivery"]["cost"]["amount"])
+            except Exception:
+                pass
+        if len(forms) < 100: break
+        offset += 100
+    return round(total, 2)
+
+
+# ── РАСХОДЫ ЗА ДЕНЬ ───────────────────────────────────────────
 
 def get_billing_for_day(token, date_str):
     dt     = datetime.strptime(date_str, "%Y-%m-%d")
@@ -131,11 +199,14 @@ def get_billing_for_day(token, date_str):
     costs  = {cat: 0.0 for cat in COST_CATS}
     offset = 0
     params = {"occurredAt.gte":d_from,"occurredAt.lte":d_to,"limit":100}
+    # Без marketplaceId → allegro-pl + business-pl вместе
     while True:
         params["offset"] = offset
         resp = requests.get("https://api.allegro.pl/billing/billing-entries",
                             headers=hdrs(token), params=params)
-        if resp.status_code != 200: break
+        if resp.status_code != 200:
+            print(f"    ⚠ billing: HTTP {resp.status_code}")
+            break
         entries = resp.json().get("billingEntries",[])
         for e in entries:
             try:
@@ -151,16 +222,18 @@ def get_billing_for_day(token, date_str):
                     if cat == "zwrot_commission": costs["commission"] = max(0.0, costs["commission"]-amt)
                     elif cat == "delivery":       costs["delivery"]   = max(0.0, costs["delivery"]-amt)
                     elif cat == "discount":       costs["discount"]  += amt
-            except: pass
+            except Exception: pass
         if len(entries) < 100: break
         offset += 100
     return {k: round(v, 2) for k, v in costs.items()}
 
 
+# ── DATA.JSON ─────────────────────────────────────────────────
+
 def load_data():
     try:
         with open("data.json") as f: return json.load(f)
-    except:
+    except Exception:
         return {"days":[],"months":[]}
 
 def save_data(data):
@@ -168,22 +241,29 @@ def save_data(data):
         json.dump(data, f, ensure_ascii=False, separators=(",",":"))
 
 def update_months(data):
-    def empty_costs(): return {c:0.0 for c in COST_CATS}
-    months_map = defaultdict(lambda:{
-        "ProCare": 0.0,
-        "countries": {"allegro-pl": 0.0},
-        "costs": empty_costs(),
-    })
+    def empty_costs():
+        return {c:0.0 for c in COST_CATS}
+    def empty_month():
+        m = {"countries": {"allegro-pl": 0.0}, "costs": empty_costs(), "buyerDelivery": 0.0}
+        for sn in SHOP_NAMES:
+            m[sn] = 0.0
+        return m
+    months_map = defaultdict(empty_month)
     for day in data["days"]:
         raw = day["date"][:7]
         y, mo = int(raw[:4]), int(raw[5:7])
         mk = MONTH_RU[mo] + " " + str(y)
-        months_map[mk]["ProCare"] = round(months_map[mk]["ProCare"] + day.get("ProCare",0), 2)
-        months_map[mk]["countries"]["allegro-pl"] = round(
-            months_map[mk]["countries"]["allegro-pl"] + day.get("countries",{}).get("allegro-pl",0), 2)
+        for sn in SHOP_NAMES:
+            months_map[mk][sn] = round(months_map[mk][sn] + day.get(sn, 0), 2)
+        for c in ["allegro-pl"]:
+            months_map[mk]["countries"][c] = round(
+                months_map[mk]["countries"][c] + day.get("countries",{}).get(c, 0), 2)
         for cat in COST_CATS:
             months_map[mk]["costs"][cat] = round(
-                months_map[mk]["costs"][cat] + day.get("costs",{}).get(cat,0), 2)
+                months_map[mk]["costs"][cat] + day.get("costs",{}).get(cat, 0), 2)
+        months_map[mk]["buyerDelivery"] = round(
+            months_map[mk]["buyerDelivery"] + day.get("buyerDelivery", 0), 2)
+
     MONTH_RU_REV = {v:k for k,v in MONTH_RU.items()}
     data["months"] = [
         {"month":k,**v}
@@ -201,43 +281,63 @@ today_str = today.strftime("%Y-%m-%d")
 dates = [(today - timedelta(days=i)).strftime("%Y-%m-%d") for i in range(RECENT_DAYS-1, -1, -1)]
 
 print(f"{'='*55}")
-print(f"  PROCARE — сбор последних {RECENT_DAYS} дней поштучно")
+print(f"  {CONFIG['project']} — сбор последних {RECENT_DAYS} дней поштучно")
+print(f"  Магазинов: {len(SHOPS)}")
 print(f"  Дни: {dates[0]} → {dates[-1]}")
 print(f"{'='*55}")
 
 data   = load_data()
 pubkey = get_gh_pubkey()
 
+# Получаем токены для всех магазинов один раз
+tokens = {}
 for shop_name, shop in SHOPS.items():
     print(f"\n── МАГАЗИН: {shop_name} ──────────────────────────────────")
     token, new_rt = get_token(shop)
     if not token:
-        print("  ❌ Токен не получен"); continue
+        print("  ❌ Токен не получен — пропускаем")
+        continue
     save_token(shop["secret_name"], new_rt, pubkey)
+    tokens[shop_name] = token
 
-    mkts = shop.get("marketplaces", ["allegro-pl","allegro-business-pl"])
+# Собираем данные по дням
+for date_str in dates:
+    is_partial = (date_str == today_str)
+    print(f"\n{'─'*55}")
+    print(f"  {date_str} {'[partial]' if is_partial else '[complete]'}")
 
-    for date_str in dates:
-        is_partial = (date_str == today_str)
-        print(f"\n  {date_str} {'▸partial' if is_partial else '[complete]'}:", end=" ", flush=True)
+    # Удаляем старую запись за этот день
+    data["days"] = [d for d in data["days"] if d["date"] != date_str]
 
+    record = {
+        "date": date_str,
+        "countries": {"allegro-pl": 0.0},
+        "costs": {cat: 0.0 for cat in COST_CATS},
+        "buyerDelivery": 0.0,
+    }
+    if is_partial:
+        record["partial"] = True
+
+    for shop_name, shop in SHOPS.items():
+        token = tokens.get(shop_name)
+        if not token:
+            record[shop_name] = 0.0
+            continue
+
+        mkts  = shop.get("marketplaces", ["allegro-pl", "allegro-business-pl"])
         sales = get_sales_for_day(token, date_str, mkts)
         costs = get_billing_for_day(token, date_str)
-        tc    = sum(v for k,v in costs.items() if k!='discount')
-        print(f"PLN={sales:,.2f}  costs={tc:,.2f}")
+        bdel  = get_buyer_delivery_for_day(token, date_str)
+        tc    = sum(v for k, v in costs.items() if k != "discount")
+        print(f"    {shop_name}: PLN={sales:,.2f}  costs={tc:,.2f}  buyer_delivery={bdel:,.2f}")
 
-        # Удаляем старую запись за этот день (если была месячная или старая дневная)
-        data["days"] = [d for d in data["days"] if d["date"] != date_str]
+        record[shop_name] = round(sales, 2)
+        record["countries"]["allegro-pl"] = round(record["countries"]["allegro-pl"] + sales, 2)
+        record["buyerDelivery"] = round(record["buyerDelivery"] + bdel, 2)
+        for cat in COST_CATS:
+            record["costs"][cat] = round(record["costs"][cat] + costs.get(cat, 0), 2)
 
-        record = {
-            "date":    date_str,
-            shop_name: round(sales, 2),
-            "countries": {"allegro-pl": round(sales, 2)},
-            "costs":   costs,
-        }
-        if is_partial:
-            record["partial"] = True
-        data["days"].append(record)
+    data["days"].append(record)
 
 data["days"].sort(key=lambda x: x["date"])
 update_months(data)
@@ -246,8 +346,8 @@ save_data(data)
 print(f"\n{'='*55}")
 print(f"✅ Готово! Дней: {len(data['days'])}  Месяцев: {len(data['months'])}")
 for d in data["days"][-5:]:
-    s = d.get('ProCare',0)
-    c = d.get('costs',{})
-    tc = c.get('commission',0)+c.get('delivery',0)+c.get('ads',0)+c.get('subscription',0)
-    print(f"  {d['date']}{'▸' if d.get('partial') else ' '} │ {s:>8,.2f} PLN │ расходы {tc:>6,.2f}")
+    total = sum(d.get(sn, 0) for sn in SHOP_NAMES)
+    c = d.get("costs", {})
+    tc = c.get("commission",0)+c.get("delivery",0)+c.get("ads",0)+c.get("subscription",0)
+    print(f"  {d['date']}{'▸' if d.get('partial') else ' '} │ {total:>8,.2f} PLN │ расходы {tc:>6,.2f}")
 print(f"{'='*55}")
