@@ -2,11 +2,17 @@
 PROCARE — сбор ежедневных данных за текущий месяц (разовый запуск)
 
 Что делает:
-  1. Удаляет месячный агрегат текущего месяца из data.days
+  1. Удаляет все записи текущего месяца из data.days
   2. Собирает реальные данные день за днём с 1-го числа до вчера
   3. Добавляет сегодня (partial: true)
 
-Запускается один раз вручную через fetch_days.yml
+Структура идентична POLAX/fetch.py:
+  - sales      = payment-operations  (по дате платежа)
+  - buyerDelivery = checkout-forms.delivery.cost (по дате заказа)
+  - costs     = billing-entries
+  Дашборд показывает total = ProCare + buyerDelivery (как Allegro UI)
+
+Запускается вручную через fetch_days.yml
 """
 import requests, json, os, base64, calendar
 from datetime import datetime, timedelta, timezone, date
@@ -116,7 +122,7 @@ def get_tz(month):
     return 2 if 3 <= month <= 10 else 1
 
 
-# ── ПРОДАЖИ ЗА ДЕНЬ ───────────────────────────────────────────
+# ── ПРОДАЖИ ЗА ДЕНЬ (payment-operations, как POLAX) ───────────
 
 def get_sales_for_day(token, date_str, marketplaces):
     dt     = datetime.strptime(date_str, "%Y-%m-%d")
@@ -143,14 +149,18 @@ def get_sales_for_day(token, date_str, marketplaces):
             if len(ops) < 50: break
             offset += 50
 
+    # pl + business-pl → одно число PLN
     total = round(by_mkt.get("allegro-pl",0) + by_mkt.get("allegro-business-pl",0), 2)
     return {"allegro-pl": total}
 
 
-# ── ДОСТАВКА ПОКУПАТЕЛЕЙ ──────────────────────────────────────
+# ── ДОСТАВКА, ОПЛАЧЕННАЯ ПОКУПАТЕЛЕМ (как POLAX) ──────────────
 
 def get_buyer_delivery_for_day(token, date_str):
-    """Сумма delivery.cost.amount по не-CANCELLED checkout-forms за день."""
+    """
+    Сумма delivery.cost.amount по всем не-CANCELLED checkout-forms за день.
+    Это входит в Allegro UI 'Wartość sprzedaży i dostawy' наравне с товаром.
+    """
     d_from = f"{date_str}T00:00:00.000Z"
     d_to   = f"{date_str}T23:59:59.999Z"
     total  = 0.0
@@ -160,10 +170,13 @@ def get_buyer_delivery_for_day(token, date_str):
             resp = requests.get(
                 "https://api.allegro.pl/order/checkout-forms",
                 headers=hdrs(token),
-                params={"lineItems.boughtAt.gte": d_from,
-                        "lineItems.boughtAt.lte": d_to,
-                        "limit": 100, "offset": offset},
-                timeout=30)
+                params={
+                    "lineItems.boughtAt.gte": d_from,
+                    "lineItems.boughtAt.lte": d_to,
+                    "limit": 100, "offset": offset,
+                },
+                timeout=30,
+            )
         except Exception as e:
             print(f"      ⚠ buyer-delivery {date_str}: {e}")
             break
@@ -178,8 +191,7 @@ def get_buyer_delivery_for_day(token, date_str):
                 total += float(form["delivery"]["cost"]["amount"])
             except Exception:
                 pass
-        if len(forms) < 100:
-            break
+        if len(forms) < 100: break
         offset += 100
     return round(total, 2)
 
