@@ -147,6 +147,43 @@ def get_sales_for_day(token, date_str, marketplaces):
     return {"allegro-pl": total}
 
 
+# ── ДОСТАВКА ПОКУПАТЕЛЕЙ ──────────────────────────────────────
+
+def get_buyer_delivery_for_day(token, date_str):
+    """Сумма delivery.cost.amount по не-CANCELLED checkout-forms за день."""
+    d_from = f"{date_str}T00:00:00.000Z"
+    d_to   = f"{date_str}T23:59:59.999Z"
+    total  = 0.0
+    offset = 0
+    while True:
+        try:
+            resp = requests.get(
+                "https://api.allegro.pl/order/checkout-forms",
+                headers=hdrs(token),
+                params={"lineItems.boughtAt.gte": d_from,
+                        "lineItems.boughtAt.lte": d_to,
+                        "limit": 100, "offset": offset},
+                timeout=30)
+        except Exception as e:
+            print(f"      ⚠ buyer-delivery {date_str}: {e}")
+            break
+        if resp.status_code != 200:
+            print(f"      ⚠ buyer-delivery {date_str}: HTTP {resp.status_code}")
+            break
+        forms = resp.json().get("checkoutForms", [])
+        for form in forms:
+            if form.get("status") == "CANCELLED":
+                continue
+            try:
+                total += float(form["delivery"]["cost"]["amount"])
+            except Exception:
+                pass
+        if len(forms) < 100:
+            break
+        offset += 100
+    return round(total, 2)
+
+
 # ── РАСХОДЫ ЗА ДЕНЬ ───────────────────────────────────────────
 
 def get_billing_for_day(token, date_str):
@@ -209,6 +246,7 @@ def update_months(data):
         "ProCare": 0.0,
         "countries": {"allegro-pl": 0.0},
         "costs": empty_costs(),
+        "buyerDelivery": 0.0,
     })
     for day in data["days"]:
         raw = day["date"][:7]
@@ -221,6 +259,8 @@ def update_months(data):
         for cat in COST_CATS:
             months_map[mk]["costs"][cat] = round(
                 months_map[mk]["costs"][cat] + day.get("costs",{}).get(cat, 0), 2)
+        months_map[mk]["buyerDelivery"] = round(
+            months_map[mk]["buyerDelivery"] + day.get("buyerDelivery", 0), 2)
 
     MONTH_RU_REV = {v:k for k,v in MONTH_RU.items()}
     data["months"] = [
@@ -285,15 +325,17 @@ for shop_name, shop in SHOPS.items():
 
         sales = get_sales_for_day(token, date_str, mkts)
         costs = get_billing_for_day(token, date_str)
+        bdel  = get_buyer_delivery_for_day(token, date_str)
         total = sales["allegro-pl"]
         tc    = sum(v for k,v in costs.items() if k!='discount')
-        print(f"PLN={total:,.2f}  costs={tc:,.2f}")
+        print(f"PLN={total:,.2f}  costs={tc:,.2f}  bdel={bdel:,.2f}")
 
         record = {
-            "date":    date_str,
-            shop_name: round(total, 2),
-            "countries": {"allegro-pl": total},
-            "costs":   costs,
+            "date":          date_str,
+            shop_name:       round(total, 2),
+            "countries":     {"allegro-pl": total},
+            "costs":         costs,
+            "buyerDelivery": bdel,
         }
         if date_str == today_str:
             record["partial"] = True
